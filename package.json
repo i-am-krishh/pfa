@@ -1,0 +1,34 @@
+{
+  "name": "personalfinance",
+  "version": "1.0.0",
+  "description": "Complete Personal Finance Management Web Application - MERN Stack",
+  "main": "index.js",
+  "scripts": {
+    "frontend": "cd frontend && npm run dev",
+    "backend": "cd backend && npm start",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install && cd .."
+  },
+  "keywords": [
+    "finance",
+    "personal-finance",
+    "expense-tracker",
+    "income-tracker",
+    "investment-tracker",
+    "loan-manager",
+    "insurance-manager",
+    "mern-stack"
+  ],
+  "author": "Your Name",
+  "license": "ISC",
+  "dependencies": {
+    "concurrently": "^8.2.2",
+    "cors": "^2.8.5",
+    "express-validator": "^7.2.0",
+    "mongoose": "^8.5.3"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  }
+}
