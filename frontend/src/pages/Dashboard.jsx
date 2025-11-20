@@ -4,7 +4,7 @@ import axios from 'axios';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, PiggyBank, DollarSign, RefreshCw } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://pfa-1fqq.vercel.app/api';
 
 export default function Dashboard() {
     const navigate = useNavigate();

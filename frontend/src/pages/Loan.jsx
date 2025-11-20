@@ -26,7 +26,7 @@ export default function Loan() {
 
   const fetchLoans = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/loan', {
+      const response = await axios.get('https://pfa-1fqq.vercel.app/api/loan', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setLoans(response.data.loans || [])
@@ -99,11 +99,11 @@ export default function Loan() {
       }
 
       if (editingId) {
-        await axios.put(`http://localhost:5000/api/loan/${editingId}`, payload, {
+        await axios.put(`https://pfa-1fqq.vercel.app/api/loan/${editingId}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       } else {
-        await axios.post('http://localhost:5000/api/loan', payload, {
+        await axios.post('https://pfa-1fqq.vercel.app/api/loan', payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       }
@@ -134,7 +134,7 @@ export default function Loan() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this loan?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/loan/${id}`, {
+        await axios.delete(`https://pfa-1fqq.vercel.app/api/loan/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         fetchLoans()

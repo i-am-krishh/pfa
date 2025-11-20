@@ -28,7 +28,7 @@ export default function Investment() {
 
   const fetchInvestments = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/investment', {
+      const response = await axios.get('https://pfa-1fqq.vercel.app/api/investment', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setInvestments(response.data.investments)
@@ -64,11 +64,11 @@ export default function Investment() {
       }
 
       if (editingId) {
-        await axios.put(`http://localhost:5000/api/investment/${editingId}`, payload, {
+        await axios.put(`https://pfa-1fqq.vercel.app/api/investment/${editingId}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       } else {
-        await axios.post('http://localhost:5000/api/investment', payload, {
+        await axios.post('https://pfa-1fqq.vercel.app/api/investment', payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       }
@@ -101,7 +101,7 @@ export default function Investment() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this investment?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/investment/${id}`, {
+        await axios.delete(`https://pfa-1fqq.vercel.app/api/investment/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         fetchInvestments()

@@ -34,7 +34,7 @@ export default function TaxSaving() {
   const fetchTaxDetails = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('http://localhost:5000/api/tax-saving', {
+      const response = await axios.get('https://pfa-1fqq.vercel.app/api/tax-saving', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setTaxData(response.data.taxSaving)
@@ -108,7 +108,7 @@ export default function TaxSaving() {
     e.preventDefault()
     try {
       setLoading(true)
-      const response = await axios.post('http://localhost:5000/api/tax-saving', formData, {
+      const response = await axios.post('https://pfa-1fqq.vercel.app/api/tax-saving', formData, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setTaxData(response.data.taxSaving)
@@ -124,7 +124,7 @@ export default function TaxSaving() {
 
   const downloadITRSummary = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/tax-saving/itr-summary', {
+      const response = await axios.get('https://pfa-1fqq.vercel.app/api/tax-saving/itr-summary', {
         headers: { Authorization: `Bearer ${token}` }
       })
 
