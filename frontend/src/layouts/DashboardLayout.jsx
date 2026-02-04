@@ -56,6 +56,9 @@ export default function DashboardLayout() {
     { label: 'Income', path: '/income' },
     { label: 'Expenses', path: '/expenses' },
     { label: 'Savings', path: '/savings' },
+    { label: 'Investments', path: '/investments' },
+    { label: 'Loans', path: '/loans' },
+    { label: 'Tax Saving', path: '/tax-saving' },
   ]
 
 
@@ -85,7 +88,7 @@ export default function DashboardLayout() {
       />
 
       {/* Main Content - With left margin to account for fixed sidebar */}
-      <main className={`transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+      <main className={`transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72'}`}>
         {/* Top Bar */}
         <div className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
           <div className="flex items-center justify-between px-4 md:px-8 py-4">
