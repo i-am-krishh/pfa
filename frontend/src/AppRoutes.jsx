@@ -11,6 +11,7 @@ import Savings from './pages/Savings'
 import Investment from './pages/Investment'
 import Loan from './pages/Loan'
 import TaxSaving from './pages/TaxSaving'
+import StockMarket from './pages/StockMarket'
 
 // Layouts
 import PublicLayout from './layouts/PublicLayout'
@@ -56,6 +57,7 @@ export default function AppRoutes() {
         <Route path="/investments" element={<ProtectedRoute element={<Investment />} />} />
         <Route path="/loans" element={<ProtectedRoute element={<Loan />} />} />
         <Route path="/tax-saving" element={<ProtectedRoute element={<TaxSaving />} />} />
+        <Route path="/stocks" element={<ProtectedRoute element={<StockMarket />} />} />
       </Route>
 
       {/* Fallback Route */}

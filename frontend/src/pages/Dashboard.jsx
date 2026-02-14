@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, PiggyBank, DollarSign, RefreshCw } from 'lucide-react';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { TrendingUp, TrendingDown, PiggyBank, Wallet, RefreshCw, Activity, ArrowUpRight, ArrowDownRight, CreditCard, DollarSign } from 'lucide-react';
 
-const API_URL = 'https://pfa-1fqq.vercel.app/api';
+const API_URL = 'http://localhost:5000/api';
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -25,10 +25,9 @@ export default function Dashboard() {
         setUser(userData ? JSON.parse(userData) : null);
         fetchDashboardData(token);
 
-        // Auto-refresh dashboard data every 5 seconds
         const interval = setInterval(() => {
             fetchDashboardData(token);
-        }, 5000);
+        }, 30000); // Increased refresh rate to 30s to reduce load
 
         return () => clearInterval(interval);
     }, [navigate]);
@@ -42,6 +41,7 @@ export default function Dashboard() {
             setSummary(response.data.summary);
         } catch (error) {
             console.error('Error fetching dashboard:', error);
+            if (error.response?.status === 401) navigate('/login');
         } finally {
             setRefreshing(false);
             setLoading(false);
@@ -50,10 +50,10 @@ export default function Dashboard() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-600 font-medium">Loading dashboard...</p>
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="relative">
+                    <div className="w-16 h-16 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
+                    <div className="mt-4 text-slate-500 font-medium">Loading Overview...</div>
                 </div>
             </div>
         );
@@ -61,154 +61,217 @@ export default function Dashboard() {
 
     const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
 
-    // Summary data with dynamic rendering
+    // Main Stats
     const summaryData = [
-        { title: 'Total Income', amount: summary?.totalIncome, icon: TrendingUp, color: 'from-green-400 to-green-600', light: 'bg-green-50' },
-        { title: 'Total Expenses', amount: summary?.totalExpense, icon: TrendingDown, color: 'from-red-400 to-red-600', light: 'bg-red-50' },
-        { title: 'Total Savings', amount: summary?.totalSavings, icon: PiggyBank, color: 'from-blue-400 to-blue-600', light: 'bg-blue-50' },
-        { title: 'Net Balance', amount: summary?.netBalance, icon: DollarSign, color: 'from-purple-400 to-purple-600', light: 'bg-purple-50' },
+        { 
+            title: 'Total Income', 
+            amount: summary?.totalIncome, 
+            icon: TrendingUp, 
+            color: 'text-emerald-600', 
+            bg: 'bg-emerald-50',
+            trend: '+12%', // Mock data for visual
+            trendUp: true 
+        },
+        { 
+            title: 'Total Expenses', 
+            amount: summary?.totalExpense, 
+            icon: TrendingDown, 
+            color: 'text-rose-600', 
+            bg: 'bg-rose-50',
+            trend: '+5%', 
+            trendUp: true // Expense going up is usually bad visually, but logically correct
+        },
+        { 
+            title: 'Net Savings', 
+            amount: summary?.totalSavings, 
+            icon: PiggyBank, 
+            color: 'text-blue-600', 
+            bg: 'bg-blue-50',
+            trend: '+8%', 
+            trendUp: true 
+        },
+        { 
+            title: 'Current Balance', 
+            amount: summary?.netBalance, 
+            icon: Wallet, 
+            color: 'text-indigo-600', 
+            bg: 'bg-indigo-50',
+            trend: '+2%', 
+            trendUp: true 
+        },
     ];
 
-    const investmentData = [
-        { title: 'Total Investments', amount: summary?.totalInvestment, icon: TrendingUp, color: 'from-indigo-400 to-indigo-600', light: 'bg-indigo-50' },
-        { title: 'Investment Value', amount: summary?.totalInvestmentValue, icon: DollarSign, color: 'from-cyan-400 to-cyan-600', light: 'bg-cyan-50' },
-        { title: 'Total Loan Amount', amount: summary?.totalLoanAmount, icon: TrendingDown, color: 'from-orange-400 to-orange-600', light: 'bg-orange-50' },
-        { title: 'Loan Remaining', amount: summary?.totalLoanRemaining, icon: PiggyBank, color: 'from-pink-400 to-pink-600', light: 'bg-pink-50' },
+    const secondaryStats = [
+        { title: 'Invested Value', amount: summary?.totalInvestmentValue, icon: Activity, color: 'text-purple-600', bg: 'bg-purple-50' },
+        { title: 'Goal Progress', amount: summary?.totalInvestment, icon: DollarSign, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+        { title: 'Debt Remaining', amount: summary?.totalLoanRemaining, icon: CreditCard, color: 'text-orange-600', bg: 'bg-orange-50' },
+        { title: 'Total Liabilities', amount: summary?.totalLoanAmount, icon: TrendingDown, color: 'text-slate-600', bg: 'bg-slate-100' },
     ];
 
     return (
-        <div className="space-y-8">
-            {/* Welcome Section with Refresh Button */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-6 md:p-8 text-white shadow-lg flex items-center justify-between">
+        <div className="space-y-8 max-w-7xl mx-auto pb-10">
+            {/* Header / Welcome */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 p-1">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-bold mb-2">Welcome back, {user?.fullName}!</h1>
-                    <p className="text-blue-100">Here's your financial overview</p>
+                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                        Dashboard
+                    </h1>
+                    <p className="text-slate-500 mt-1">
+                        Welcome back, <span className="font-semibold text-slate-700">{user?.fullName}</span>. Here's your financial summary.
+                    </p>
                 </div>
                 <button
                     onClick={() => {
-                        const token = localStorage.getItem('token');
-                        fetchDashboardData(token);
+                         const token = localStorage.getItem('token');
+                         fetchDashboardData(token);
                     }}
-                    disabled={refreshing}
-                    className="ml-4 flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Refresh dashboard data"
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-200 rounded-lg shadow-sm transition-all active:scale-95 text-sm font-medium"
                 >
-                    <RefreshCw size={20} className={`${refreshing ? 'animate-spin' : ''}`} />
-                    <span className="text-sm font-medium">{refreshing ? 'Updating...' : 'Refresh'}</span>
+                    <RefreshCw size={16} className={`${refreshing ? 'animate-spin' : ''}`} />
+                    Refresh Data
                 </button>
             </div>
 
-            {/* Primary Summary Cards - Responsive Grid */}
-            <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-6">Financial Overview</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                    {summaryData.map((item, index) => (
-                        <SummaryCard key={index} {...item} />
-                    ))}
-                </div>
-            </div>
-
-            {/* Charts Section - Responsive Grid */}
-            <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-6">Analytics</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Expense by Category - Responsive Pie Chart */}
-                    <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-6">Expenses by Category</h3>
-                        <div className="w-full h-80 flex items-center justify-center">
-                            {(summary?.expenseByCategory?.length || 0) > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={summary?.expenseByCategory || []}
-                                            dataKey="total"
-                                            nameKey="_id"
-                                            cx="50%"
-                                            cy="50%"
-                                            outerRadius={100}
-                                            label={({ _id, total }) => `${_id}: ₹${total}`}
-                                        >
-                                            {(summary?.expenseByCategory || []).map((entry, idx) => (
-                                                <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip formatter={(value) => `₹${value.toFixed(2)}`} />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="text-center text-slate-500">
-                                    <p className="text-lg font-medium">No expense data available</p>
-                                    <p className="text-sm">Start adding expenses to see analytics</p>
+            {/* Primary Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {summaryData.map((item, index) => (
+                    <div key={index} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100/50 hover:shadow-md transition-shadow group">
+                        <div className="flex justify-between items-start">
+                            <div className={`p-3 rounded-xl ${item.bg} ${item.color} group-hover:scale-110 transition-transform duration-300`}>
+                                <item.icon size={24} />
+                            </div>
+                            {item.trend && (
+                                <div className={`flex items-center text-xs font-semibold px-2 py-1 rounded-full ${item.trendUp ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                    {item.trendUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                                    {item.trend}
                                 </div>
                             )}
                         </div>
+                        <div className="mt-4">
+                            <p className="text-slate-500 text-sm font-medium">{item.title}</p>
+                            <h3 className="text-2xl font-bold text-slate-900 mt-1">
+                                ₹{(item.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </h3>
+                        </div>
                     </div>
+                ))}
+            </div>
 
-                    {/* Income by Source - Responsive Bar Chart */}
-                    <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-6">Income by Source</h3>
-                        <div className="w-full h-80 flex items-center justify-center">
-                            {(summary?.incomeBySource?.length || 0) > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart
-                                        data={summary?.incomeBySource || []}
-                                        margin={{ top: 20, right: 30, left: 0, bottom: 60 }}
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Income vs Source - Bar Chart */}
+                <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-bold text-slate-800">Income Overview</h3>
+                        <div className="bg-slate-50 px-3 py-1 rounded-lg text-xs font-medium text-slate-500">This Month</div>
+                    </div>
+                    
+                    <div className="h-[300px] w-full">
+                        {(!summary?.incomeBySource || summary.incomeBySource.length === 0) ? (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                <Activity size={40} className="mb-2 opacity-50"/>
+                                <p>No income data recorded yet</p>
+                            </div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={summary.incomeBySource} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis 
+                                        dataKey="_id" 
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: '#64748b', fontSize: 12 }}
+                                        dy={10}
+                                        tickFormatter={(val) => val.charAt(0).toUpperCase() + val.slice(1)}
+                                    />
+                                    <YAxis 
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: '#64748b', fontSize: 12 }}
+                                        tickFormatter={(value) => `₹${value/1000}k`}
+                                    />
+                                    <Tooltip 
+                                        cursor={{ fill: '#f8fafc' }}
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    />
+                                    <Bar 
+                                        dataKey="total" 
+                                        fill="#10b981" 
+                                        radius={[6, 6, 0, 0]}
+                                        barSize={40}
+                                    />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
+                    </div>
+                </div>
+
+                {/* Expenses - Pie Chart */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h3 className="text-lg font-bold text-slate-800 mb-2">Expenses Breakdown</h3>
+                    <p className="text-sm text-slate-500 mb-6">Where your money is going</p>
+                    
+                    <div className="h-[250px] w-full relative">
+                        {(!summary?.expenseByCategory || summary.expenseByCategory.length === 0) ? (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                <DollarSign size={40} className="mb-2 opacity-50"/>
+                                <p>No expense data yet</p>
+                            </div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={summary.expenseByCategory}
+                                        dataKey="total"
+                                        nameKey="_id"
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                        <XAxis
-                                            dataKey="_id"
-                                            angle={-45}
-                                            textAnchor="end"
-                                            height={80}
-                                            tick={{ fill: '#64748b', fontSize: 12 }}
-                                        />
-                                        <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                            formatter={(value) => `₹${value.toFixed(2)}`}
-                                            labelStyle={{ color: '#fff' }}
-                                        />
-                                        <Bar dataKey="total" fill="#10b981" radius={[8, 8, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="text-center text-slate-500">
-                                    <p className="text-lg font-medium">No income data available</p>
-                                    <p className="text-sm">Start adding income to see analytics</p>
-                                </div>
-                            )}
-                        </div>
+                                        {summary.expenseByCategory.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip 
+                                        formatter={(value) => `₹${value.toLocaleString()}`}
+                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        )}
+                        {/* Legend */}
+                        {summary?.expenseByCategory?.length > 0 && (
+                             <div className="flex flex-wrap justify-center gap-2 mt-4 max-h-[100px] overflow-y-auto custom-scrollbar">
+                                 {summary.expenseByCategory.map((entry, index) => (
+                                     <div key={index} className="flex items-center gap-1.5 text-xs text-slate-600">
+                                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                                         <span className="capitalize">{entry._id}: {((entry.total / summary.totalExpense) * 100).toFixed(0)}%</span>
+                                     </div>
+                                 ))}
+                             </div>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Investment & Loan Summary - Responsive Grid */}
+            {/* Secondary Stats/Overview */}
             <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-6">Investment & Loans</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                    {investmentData.map((item, index) => (
-                        <SummaryCard key={index} {...item} />
+                 <h2 className="text-lg font-bold text-slate-800 mb-4 px-1">Portfolio Snapshot</h2>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {secondaryStats.map((item, index) => (
+                        <div key={index} className="bg-white rounded-xl p-4 border border-slate-100 flex items-center gap-4 hover:border-slate-200 transition-colors">
+                            <div className={`p-3 rounded-full ${item.bg} ${item.color}`}>
+                                <item.icon size={20} />
+                            </div>
+                            <div>
+                                <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">{item.title}</p>
+                                <p className="text-slate-900 font-bold text-lg">₹{(item.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+                            </div>
+                        </div>
                     ))}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function SummaryCard({ title, amount, icon: Icon, color, light }) {
-    return (
-        <div className={`${light} rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-6 border border-slate-200 hover:border-slate-300`}>
-            <div className="flex items-start justify-between">
-                <div className="flex-1">
-                    <p className="text-slate-600 text-sm font-medium mb-2">{title}</p>
-                    <p className="text-3xl font-bold text-slate-900">₹{(amount || 0).toFixed(2)}</p>
-                </div>
-                <div className={`bg-gradient-to-br ${color} p-3 rounded-lg text-white shadow-md`}>
-                    <Icon size={24} />
-                </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-slate-200">
-                <p className="text-xs text-slate-500">Last updated today</p>
+                 </div>
             </div>
         </div>
     );

@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { CreditCard, Plus, Cross, Calendar, Tag, Search, TrendingDown, Filter, X, ShoppingBag } from 'lucide-react';
 
-const API_URL = 'https://pfa-1fqq.vercel.app/api';
+const API_URL = 'http://localhost:5000/api';
 
 export default function Expenses() {
     const navigate = useNavigate();
     const [expenses, setExpenses] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [filterCategory, setFilterCategory] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
+
     const [formData, setFormData] = useState({
         category: 'food',
         amount: '',
@@ -65,6 +69,7 @@ export default function Expenses() {
     };
 
     const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this expense?')) return;
         const token = localStorage.getItem('token');
         try {
             await axios.delete(`${API_URL}/expense/${id}`, {
@@ -78,150 +83,234 @@ export default function Expenses() {
 
     const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
+    // Filtering
+    const filteredExpenses = expenses.filter(exp => {
+        const matchesCategory = filterCategory === 'all' || exp.category === filterCategory;
+        const matchesSearch = exp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              exp.category.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
+
+    const categories = ['food', 'transport', 'utilities', 'entertainment', 'shopping', 'healthcare', 'education', 'insurance', 'rent', 'other'];
+    const paymentMethods = ['cash', 'credit_card', 'debit_card', 'bank_transfer', 'upi'];
+
     return (
-        <div className="min-h-screen bg-gray-100 p-8">
-            <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Expense Manager</h1>
-                    <button
-                        onClick={() => setShowForm(!showForm)}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
-                    >
-                        {showForm ? 'Cancel' : 'Add Expense'}
-                    </button>
+        <div className="space-y-8 max-w-7xl mx-auto pb-10">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+                        <div className="p-2 bg-rose-100/50 rounded-xl">
+                             <ShoppingBag className="text-rose-600" size={32} />
+                        </div>
+                        Expense Tracker
+                    </h1>
+                    <p className="text-slate-500 mt-2 text-lg">Monitor your spending habits</p>
                 </div>
-
-                {/* Summary Card */}
-                <div className="bg-red-500 text-white rounded-lg shadow p-6 mb-8">
-                    <p className="text-gray-100">Total Expenses</p>
-                    <p className="text-4xl font-bold">₹{totalExpenses.toFixed(2)}</p>
+                
+                <div className="bg-rose-600 text-white rounded-2xl p-6 shadow-lg shadow-rose-600/20 min-w-[280px] hover:scale-105 transition-transform duration-300">
+                    <div className="flex items-center gap-2 mb-2 opacity-90">
+                        <TrendingDown size={18} />
+                        <span className="font-medium text-sm uppercase tracking-wide">Total Spent</span>
+                    </div>
+                    <div className="text-4xl font-bold">₹{totalExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                    <div className="text-rose-100 text-sm mt-2 opacity-80">All time expenses</div>
                 </div>
+            </div>
 
-                {/* Add Form */}
-                {showForm && (
-                    <div className="bg-white rounded-lg shadow p-6 mb-8">
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-gray-700 font-semibold mb-2">Category</label>
-                                    <select
-                                        name="category"
-                                        value={formData.category}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                                    >
-                                        <option value="food">Food</option>
-                                        <option value="transport">Transport</option>
-                                        <option value="utilities">Utilities</option>
-                                        <option value="entertainment">Entertainment</option>
-                                        <option value="shopping">Shopping</option>
-                                        <option value="healthcare">Healthcare</option>
-                                        <option value="education">Education</option>
-                                        <option value="insurance">Insurance</option>
-                                        <option value="rent">Rent</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                </div>
+            {/* Controls */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    <div className="relative group w-full md:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-rose-500 transition-colors" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Search expenses..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
+                        />
+                    </div>
+                    <div className="relative w-full md:w-48">
+                         <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                         <select 
+                            value={filterCategory}
+                            onChange={(e) => setFilterCategory(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 appearance-none cursor-pointer capitalize"
+                         >
+                            <option value="all">All Categories</option>
+                            {categories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                         </select>
+                    </div>
+                </div>
+                <button
+                    onClick={() => setShowForm(true)}
+                    className="w-full md:w-auto flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 rounded-lg font-semibold shadow-md shadow-rose-600/20 transition-all active:scale-95"
+                >
+                    <Plus size={20} />
+                    Add Expense
+                </button>
+            </div>
 
-                                <div>
-                                    <label className="block text-gray-700 font-semibold mb-2">Amount</label>
+            {/* Expenses Grid */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                {filteredExpenses.length === 0 ? (
+                    <div className="p-12 text-center flex flex-col items-center text-slate-400">
+                        <ShoppingBag size={48} className="mb-4 opacity-20" />
+                        <h3 className="text-lg font-medium text-slate-600">No expenses found</h3>
+                        <p className="max-w-xs mx-auto mt-1">Good job saving money! Or maybe you just haven't logged anything yet.</p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Category</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Payment</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Amount</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {filteredExpenses.map((expense) => (
+                                    <tr key={expense._id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex items-center gap-2 text-slate-600">
+                                                <Calendar size={14} className="text-slate-400"/>
+                                                {new Date(expense.date).toLocaleDateString()}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-slate-50 text-slate-700 border-slate-200 capitalize">
+                                                {expense.category}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 max-w-xs truncate">
+                                            {expense.description || '-'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex items-center gap-1.5 text-sm text-slate-500 capitalize">
+                                                <CreditCard size={14} />
+                                                {expense.paymentMethod.replace('_', ' ')}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-rose-600">
+                                            -₹{expense.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <button 
+                                                onClick={() => handleDelete(expense._id)}
+                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                title="Delete Record"
+                                            >
+                                                <Cross size={16} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* Modal Form */}
+            {showForm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <h3 className="text-lg font-bold text-slate-800">Add New Expense</h3>
+                            <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Amount (₹)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                                     <input
                                         type="number"
                                         name="amount"
                                         value={formData.amount}
                                         onChange={handleChange}
                                         required
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                                         placeholder="0.00"
+                                        className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all placeholder:text-slate-300"
                                     />
                                 </div>
+                            </div>
 
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-gray-700 font-semibold mb-2">Date</label>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Category</label>
+                                    <select
+                                        name="category"
+                                        value={formData.category}
+                                        onChange={handleChange}
+                                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none capitalize"
+                                    >
+                                        {categories.map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Date</label>
                                     <input
                                         type="date"
                                         name="date"
                                         value={formData.date}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-slate-600"
                                     />
-                                </div>
-
-                                <div>
-                                    <label className="block text-gray-700 font-semibold mb-2">Payment Method</label>
-                                    <select
-                                        name="paymentMethod"
-                                        value={formData.paymentMethod}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                                    >
-                                        <option value="cash">Cash</option>
-                                        <option value="credit_card">Credit Card</option>
-                                        <option value="debit_card">Debit Card</option>
-                                        <option value="bank_transfer">Bank Transfer</option>
-                                        <option value="upi">UPI</option>
-                                    </select>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-gray-700 font-semibold mb-2">Description</label>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Payment Method</label>
+                                <select
+                                    name="paymentMethod"
+                                    value={formData.paymentMethod}
+                                    onChange={handleChange}
+                                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none capitalize"
+                                >
+                                    {paymentMethods.map(method => (
+                                        <option key={method} value={method}>{method.replace('_', ' ')}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Description (Optional)</label>
                                 <textarea
                                     name="description"
                                     value={formData.description}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                                    placeholder="Add notes..."
-                                    rows="3"
+                                    rows="2"
+                                    placeholder="Add any additional notes..."
+                                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none placeholder:text-slate-300 resize-none"
                                 />
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg disabled:opacity-50"
-                            >
-                                {loading ? 'Adding...' : 'Add Expense'}
-                            </button>
+                            <div className="pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-rose-500/20 transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100"
+                                >
+                                    {loading ? 'Adding...' : 'Log Expense'}
+                                </button>
+                            </div>
                         </form>
                     </div>
-                )}
-
-                {/* Expenses List */}
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <table className="w-full">
-                        <thead className="bg-gray-200">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-gray-900 font-semibold">Date</th>
-                                <th className="px-6 py-3 text-left text-gray-900 font-semibold">Category</th>
-                                <th className="px-6 py-3 text-left text-gray-900 font-semibold">Description</th>
-                                <th className="px-6 py-3 text-left text-gray-900 font-semibold">Amount</th>
-                                <th className="px-6 py-3 text-left text-gray-900 font-semibold">Method</th>
-                                <th className="px-6 py-3 text-left text-gray-900 font-semibold">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {expenses.map(expense => (
-                                <tr key={expense._id} className="border-t hover:bg-gray-50">
-                                    <td className="px-6 py-4">{new Date(expense.date).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4 capitalize">{expense.category}</td>
-                                    <td className="px-6 py-4">{expense.description}</td>
-                                    <td className="px-6 py-4 font-semibold">₹{expense.amount.toFixed(2)}</td>
-                                    <td className="px-6 py-4 capitalize">{expense.paymentMethod.replace('_', ' ')}</td>
-                                    <td className="px-6 py-4">
-                                        <button
-                                            onClick={() => handleDelete(expense._id)}
-                                            className="text-red-500 hover:text-red-700"
-                                        >
-                                            Delete
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

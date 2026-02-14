@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { TrendingUp, Plus, Trash2, Edit2, Eye } from 'lucide-react'
+import { TrendingUp, Plus, Trash2, Edit2, Eye, TrendingDown, Wallet, PieChart, Activity, Search } from 'lucide-react'
+import Modal from '../components/Modal'
+import { getTrendingStocks, getMutualFunds } from '../services/stockApi'
 
 export default function Investment() {
   const [investments, setInvestments] = useState([])
@@ -9,6 +11,10 @@ export default function Investment() {
   const [viewingId, setViewingId] = useState(null)
   const [totalInvested, setTotalInvested] = useState(0)
   const [totalCurrentValue, setTotalCurrentValue] = useState(0)
+
+  const [suggestions, setSuggestions] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   const [formData, setFormData] = useState({
     type: 'stocks',
@@ -24,11 +30,51 @@ export default function Investment() {
     description: ''
   })
 
+  // Debounced search for stocks
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (['stocks', 'mutual_funds'].includes(formData.type) && formData.name.length > 2) {
+        setIsSearching(true)
+        try {
+          const fetcher = formData.type === 'mutual_funds' ? getMutualFunds : getTrendingStocks;
+          const response = await fetcher();
+          const data = response.data.data || response.data || [];
+          
+          const matches = Array.isArray(data) ? data.filter(item => 
+            (item.companyName || item.name || '').toLowerCase().includes(formData.name.toLowerCase()) ||
+            (item.symbol || '').toLowerCase().includes(formData.name.toLowerCase())
+          ).slice(0, 5) : [];
+          
+          setSuggestions(matches);
+        } catch (error) {
+          console.error("Failed to fetch suggestions", error);
+        } finally {
+          setIsSearching(false)
+        }
+      } else {
+        setSuggestions([])
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [formData.name, formData.type])
+
+  const selectSuggestion = (item) => {
+    setFormData(prev => ({
+      ...prev,
+      name: item.companyName || item.name || item.symbol,
+      // If price is available in the suggestion, use it
+      currentValue: item.currentPrice ? (parseFloat(item.currentPrice) * (prev.quantity || 1)).toFixed(2) : prev.currentValue,
+      pricePerUnit: item.currentPrice || prev.pricePerUnit
+    }))
+    setSuggestions([])
+  }
+
   const token = localStorage.getItem('token')
 
   const fetchInvestments = async () => {
     try {
-      const response = await axios.get('https://pfa-1fqq.vercel.app/api/investment', {
+      const response = await axios.get('http://localhost:5000/api/investment', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setInvestments(response.data.investments)
@@ -45,6 +91,7 @@ export default function Investment() {
 
   const handleChange = (e) => {
     const { name, value } = e.target
+    if (name === 'name') setShowSuggestions(true)
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -58,17 +105,17 @@ export default function Investment() {
         ...formData,
         amount: parseFloat(formData.amount),
         currentValue: parseFloat(formData.currentValue),
-        quantity: parseFloat(formData.quantity),
-        pricePerUnit: parseFloat(formData.pricePerUnit),
-        expectedReturnPercentage: parseFloat(formData.expectedReturnPercentage)
+        quantity: formData.quantity ? parseFloat(formData.quantity) : 0,
+        pricePerUnit: formData.pricePerUnit ? parseFloat(formData.pricePerUnit) : 0,
+        expectedReturnPercentage: formData.expectedReturnPercentage ? parseFloat(formData.expectedReturnPercentage) : 0
       }
 
       if (editingId) {
-        await axios.put(`https://pfa-1fqq.vercel.app/api/investment/${editingId}`, payload, {
+        await axios.put(`http://localhost:5000/api/investment/${editingId}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       } else {
-        await axios.post('https://pfa-1fqq.vercel.app/api/investment', payload, {
+        await axios.post('http://localhost:5000/api/investment', payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       }
@@ -101,7 +148,7 @@ export default function Investment() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this investment?')) {
       try {
-        await axios.delete(`https://pfa-1fqq.vercel.app/api/investment/${id}`, {
+        await axios.delete(`http://localhost:5000/api/investment/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         fetchInvestments()
@@ -140,10 +187,10 @@ export default function Investment() {
 
   const getRiskColor = (risk) => {
     switch(risk) {
-      case 'low': return 'text-green-400'
-      case 'medium': return 'text-yellow-400'
-      case 'high': return 'text-red-400'
-      default: return 'text-gray-400'
+      case 'low': return 'text-green-400 bg-green-400/10 border-green-400/20'
+      case 'medium': return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20'
+      case 'high': return 'text-red-400 bg-red-400/10 border-red-400/20'
+      default: return 'text-slate-400 bg-slate-400/10 border-slate-400/20'
     }
   }
 
@@ -159,350 +206,497 @@ export default function Investment() {
     return labels[type] || type
   }
 
-  const investmentDetail = investments.find(inv => inv._id === viewingId)
+  const profitLoss = totalCurrentValue - totalInvested
+  const isProfitable = profitLoss >= 0
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-            <TrendingUp className="text-blue-400" size={32} />
-            Investment Portfolio
+          <h1 className="text-3xl font-bold text-slate-900 mb-2 flex items-center gap-3">
+             <div className="p-2 bg-blue-100/50 rounded-xl">
+               <TrendingUp className="text-blue-600" size={32} />
+             </div>
+             Investment Portfolio
           </h1>
-          <p className="text-gray-400 mt-1">Track and manage your investments</p>
+          <p className="text-slate-500 text-lg">Manage your assets and track performance</p>
         </div>
         <button
           onClick={() => {
             resetForm()
             setShowForm(true)
           }}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
+          className="group flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-6 py-3 rounded-xl transition-all shadow-lg shadow-blue-600/20 font-semibold"
         >
-          <Plus size={20} />
-          Add Investment
+          <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
+          New Investment
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-blue-900/30 to-blue-800/20 border border-blue-700/30 rounded-lg p-6">
-          <p className="text-gray-400 text-sm">Total Invested</p>
-          <p className="text-2xl font-bold text-blue-400 mt-2">₹{totalInvested.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
+      {/* Analytics Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+             <Wallet size={80} className="text-blue-600" />
+          </div>
+          <div className="relative z-10">
+             <p className="text-slate-500 font-medium mb-2 flex items-center gap-2">
+               <Wallet size={16} /> Total Invested
+             </p>
+             <h3 className="text-3xl font-bold text-slate-900">
+               ₹{totalInvested.toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+             </h3>
+             <p className="text-slate-400 text-xs mt-2">Initial capital inputs</p>
+          </div>
         </div>
-        <div className="bg-gradient-to-br from-purple-900/30 to-purple-800/20 border border-purple-700/30 rounded-lg p-6">
-          <p className="text-gray-400 text-sm">Current Value</p>
-          <p className="text-2xl font-bold text-purple-400 mt-2">₹{totalCurrentValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
+
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+             <PieChart size={80} className="text-purple-600" />
+          </div>
+          <div className="relative z-10">
+             <p className="text-slate-500 font-medium mb-2 flex items-center gap-2">
+               <Activity size={16} /> Current Value
+             </p>
+             <h3 className="text-3xl font-bold text-slate-900">
+               ₹{totalCurrentValue.toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+             </h3>
+             <p className="text-slate-400 text-xs mt-2">Market value today</p>
+          </div>
         </div>
-        <div className={`bg-gradient-to-br ${totalCurrentValue >= totalInvested ? 'from-green-900/30 to-green-800/20' : 'from-red-900/30 to-red-800/20'} border ${totalCurrentValue >= totalInvested ? 'border-green-700/30' : 'border-red-700/30'} rounded-lg p-6`}>
-          <p className="text-gray-400 text-sm">Profit/Loss</p>
-          <p className={`text-2xl font-bold mt-2 ${totalCurrentValue >= totalInvested ? 'text-green-400' : 'text-red-400'}`}>
-            ₹{(totalCurrentValue - totalInvested).toLocaleString('en-IN', {minimumFractionDigits: 2})}
-          </p>
+
+        <div className={`rounded-2xl p-6 shadow-lg relative overflow-hidden group transition-colors duration-300 ${isProfitable ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-green-600/20' : 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-red-600/20'}`}>
+          <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform duration-500">
+             {isProfitable ? <TrendingUp size={80} /> : <TrendingDown size={80} />}
+          </div>
+          <div className="relative z-10">
+             <p className="font-medium mb-2 opacity-90 flex items-center gap-2">
+               Total Profit/Loss
+             </p>
+             <h3 className="text-3xl font-bold flex items-center gap-2">
+               {isProfitable ? '+' : ''}₹{Math.abs(profitLoss).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+             </h3>
+             <div className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full bg-white/20 text-sm font-medium backdrop-blur-sm">
+               {totalInvested > 0 ? ((profitLoss / totalInvested) * 100).toFixed(2) : 0}% Return
+             </div>
+          </div>
         </div>
       </div>
 
-      {/* Form */}
+      {/* Edit/Add Form Modal/Inline */}
       {showForm && (
-        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-white mb-4">
-            {editingId ? 'Edit Investment' : 'Add New Investment'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Type */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
-                <select
-                  name="type"
-                  value={formData.type}
-                  onChange={handleChange}
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="stocks">Stocks</option>
-                  <option value="mutual_funds">Mutual Funds</option>
-                  <option value="crypto">Cryptocurrency</option>
-                  <option value="bonds">Bonds</option>
-                  <option value="real_estate">Real Estate</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              {/* Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Investment Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="e.g., RELIANCE Stocks"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-
-              {/* Amount */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Initial Investment Amount (₹)</label>
-                <input
-                  type="number"
-                  name="amount"
-                  value={formData.amount}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-
-              {/* Current Value */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Current Value (₹)</label>
-                <input
-                  type="number"
-                  name="currentValue"
-                  value={formData.currentValue}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-
-              {/* Quantity */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Quantity</label>
-                <input
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  placeholder="1"
-                  step="0.01"
-                  min="0"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              {/* Price Per Unit */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Price Per Unit (₹)</label>
-                <input
-                  type="number"
-                  name="pricePerUnit"
-                  value={formData.pricePerUnit}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              {/* Investment Date */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Investment Date</label>
-                <input
-                  type="date"
-                  name="investmentDate"
-                  value={formData.investmentDate}
-                  onChange={handleChange}
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-
-              {/* Expected Return */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Expected Return (%)</label>
-                <input
-                  type="number"
-                  name="expectedReturnPercentage"
-                  value={formData.expectedReturnPercentage}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              {/* Risk Level */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Risk Level</label>
-                <select
-                  name="riskLevel"
-                  value={formData.riskLevel}
-                  onChange={handleChange}
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
-
-              {/* Broker */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Broker/Platform</label>
-                <input
-                  type="text"
-                  name="broker"
-                  value={formData.broker}
-                  onChange={handleChange}
-                  placeholder="e.g., NSE, Zerodha"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Description (Optional)</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                placeholder="Add notes about this investment..."
-                rows="3"
-                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-              ></textarea>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition font-medium"
-              >
-                {editingId ? 'Update Investment' : 'Add Investment'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg transition font-medium"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Investments List */}
-      <div className="space-y-4">
-        {investments.length === 0 ? (
-          <div className="text-center py-12 bg-slate-800/50 border border-slate-700 rounded-lg">
-            <TrendingUp size={40} className="mx-auto text-gray-500 mb-3" />
-            <p className="text-gray-400">No investments yet. Start building your portfolio!</p>
-          </div>
-        ) : (
-          investments.map((inv) => (
-            <div key={inv._id} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-bold text-white">{inv.name}</h3>
-                    <span className="text-xs px-2 py-1 bg-blue-900/50 text-blue-300 rounded-full">
-                      {getTypeLabel(inv.type)}
-                    </span>
-                    <span className={`text-xs px-2 py-1 bg-slate-700 rounded-full ${getRiskColor(inv.riskLevel)}`}>
-                      {inv.riskLevel.charAt(0).toUpperCase() + inv.riskLevel.slice(1)} Risk
-                    </span>
+        <Modal 
+          onClose={resetForm} 
+          title={editingId ? 'Edit Investment' : 'Add New Asset'}
+        >
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Asset Class Selection - Always Visible */}
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Asset Class</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {['stocks', 'mutual_funds', 'crypto', 'bonds', 'real_estate', 'other'].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => handleChange({ target: { name: 'type', value: type } })}
+                        className={`p-3 rounded-xl border text-sm font-medium transition-all ${
+                          formData.type === type
+                            ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm ring-1 ring-blue-500'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        {getTypeLabel(type)}
+                      </button>
+                    ))}
                   </div>
-                  <p className="text-gray-400 text-sm mt-1">{inv.broker && `Broker: ${inv.broker}`}</p>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setViewingId(viewingId === inv._id ? null : inv._id)}
-                    className="p-2 bg-blue-900/50 hover:bg-blue-800 text-blue-400 rounded transition"
-                    title="View details"
-                  >
-                    <Eye size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleEdit(inv)}
-                    className="p-2 bg-purple-900/50 hover:bg-purple-800 text-purple-400 rounded transition"
-                    title="Edit"
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(inv._id)}
-                    className="p-2 bg-red-900/50 hover:bg-red-800 text-red-400 rounded transition"
-                    title="Delete"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
 
-              {/* Investment Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                <div>
-                  <p className="text-gray-400 text-xs">Initial Investment</p>
-                  <p className="text-white font-semibold">₹{inv.amount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs">Current Value</p>
-                  <p className="text-white font-semibold">₹{inv.currentValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs">Profit/Loss</p>
-                  <p className={`font-semibold ${calculateProfit(inv) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    ₹{calculateProfit(inv).toLocaleString('en-IN', {minimumFractionDigits: 2})}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs">ROI</p>
-                  <p className={`font-semibold ${calculateROI(inv) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {calculateROI(inv)}%
-                  </p>
-                </div>
-              </div>
-
-              {/* Expanded View */}
-              {viewingId === inv._id && (
-                <div className="mt-4 pt-4 border-t border-slate-700 space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {inv.quantity && (
-                      <div>
-                        <p className="text-gray-400 text-sm">Quantity</p>
-                        <p className="text-white font-semibold">{inv.quantity} units</p>
-                      </div>
-                    )}
-                    {inv.pricePerUnit && (
-                      <div>
-                        <p className="text-gray-400 text-sm">Price Per Unit</p>
-                        <p className="text-white font-semibold">₹{inv.pricePerUnit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-gray-400 text-sm">Investment Date</p>
-                      <p className="text-white font-semibold">{new Date(inv.investmentDate).toLocaleDateString()}</p>
-                    </div>
-                    {inv.expectedReturnPercentage > 0 && (
-                      <div>
-                        <p className="text-gray-400 text-sm">Expected Return</p>
-                        <p className="text-white font-semibold">{inv.expectedReturnPercentage}%</p>
-                      </div>
-                    )}
-                  </div>
-                  {inv.description && (
-                    <div>
-                      <p className="text-gray-400 text-sm">Notes</p>
-                      <p className="text-white">{inv.description}</p>
-                    </div>
+                {/* Common Fields Section */}
+                <div className="md:col-span-2 border-t border-slate-100 pt-4">
+                  <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-blue-500 rounded-full"></span>
+                    Basic Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2 relative">
+                  <label className="text-sm font-semibold text-slate-700">
+                    {formData.type === 'real_estate' ? 'Property Name' : 'Asset Name'}
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    onFocus={() => setShowSuggestions(true)}
+                    placeholder={formData.type === 'real_estate' ? 'e.g. Apartment in City Center' : "e.g. HDFC Bank, Bitcoin"}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+                    required
+                    autoComplete="off"
+                  />
+                  {/* Suggestions Dropdown */}
+                  {showSuggestions && suggestions.length > 0 && (
+                    <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto mt-1">
+                      {suggestions.map((item, index) => (
+                        <li 
+                          key={index}
+                          onClick={() => {
+                            selectSuggestion(item);
+                            setShowSuggestions(false);
+                          }}
+                          className="px-4 py-3 hover:bg-slate-50 cursor-pointer flex justify-between items-center group transition-colors"
+                        >
+                          <div>
+                            <div className="font-semibold text-slate-800 text-sm">
+                              {item.companyName || item.name || item.symbol}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {item.symbol} {item.currentPrice ? `• ₹${item.currentPrice}` : ''}
+                            </div>
+                          </div>
+                          <Plus size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
-              )}
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Date Invested</label>
+                      <input
+                        type="date"
+                        name="investmentDate"
+                        value={formData.investmentDate}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-slate-600"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Financial Details Section */}
+                <div className="md:col-span-2 border-t border-slate-100 pt-4">
+                   <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-green-500 rounded-full"></span>
+                    Financials
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Invested Amount (₹)</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">₹</span>
+                        <input
+                          type="number"
+                          name="amount"
+                          value={formData.amount}
+                          onChange={handleChange}
+                          placeholder="0.00"
+                          className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Current Value (₹)</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">₹</span>
+                        <input
+                          type="number"
+                          name="currentValue"
+                          value={formData.currentValue}
+                          onChange={handleChange}
+                          placeholder="0.00"
+                          className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+                          required
+                        />
+                      </div>
+                    </div>
+                  
+                    <div className="space-y-2">
+                       <label className="text-sm font-semibold text-slate-700">Expected Return (%)</label>
+                       <div className="relative">
+                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">%</span>
+                         <input
+                           type="number"
+                           name="expectedReturnPercentage"
+                           value={formData.expectedReturnPercentage}
+                           onChange={handleChange}
+                           placeholder="0.00"
+                           className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+                         />
+                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Conditional Fields based on Asset Class */}
+                {['stocks', 'mutual_funds', 'crypto'].includes(formData.type) && (
+                  <div className="md:col-span-2 border-t border-slate-100 pt-4 animate-in slide-in-from-top-2">
+                    <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                      <span className="w-1 h-4 bg-purple-500 rounded-full"></span>
+                      Market Details
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-700">Quantity / Units</label>
+                        <input
+                          type="number"
+                          name="quantity"
+                          value={formData.quantity}
+                          onChange={handleChange}
+                          placeholder="0"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-700">Avg. Price</label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">₹</span>
+                          <input
+                            type="number"
+                            name="pricePerUnit"
+                            value={formData.pricePerUnit}
+                            onChange={handleChange}
+                            placeholder="0.00"
+                            className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+                          />
+                        </div>
+                      </div>
+
+                       <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-700">
+                          {formData.type === 'crypto' ? 'Exchange / Wallet' : 'Broker / Platform'}
+                        </label>
+                        <input
+                          type="text"
+                          name="broker"
+                          value={formData.broker}
+                          onChange={handleChange}
+                          placeholder={formData.type === 'crypto' ? 'e.g. Binance, MetaMask' : 'e.g. Zerodha, Groww'}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                 {/* Real Estate Specifics */}
+                 {formData.type === 'real_estate' && (
+                  <div className="md:col-span-2 border-t border-slate-100 pt-4 animate-in slide-in-from-top-2">
+                     <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                      <span className="w-1 h-4 bg-orange-500 rounded-full"></span>
+                      Property Details
+                    </h3>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Location / Address</label>
+                      <input
+                        type="text"
+                        name="broker" // Reuse broker field for location
+                        value={formData.broker}
+                        onChange={handleChange}
+                        placeholder="e.g. 123 Main St, New York"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Additional Info Section */}
+                <div className="md:col-span-2 border-t border-slate-100 pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Risk Profile</label>
+                      <select
+                        name="riskLevel"
+                        value={formData.riskLevel}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      >
+                        <option value="low">Low Risk (Conservative)</option>
+                        <option value="medium">Medium Risk (Balanced)</option>
+                        <option value="high">High Risk (Aggressive)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                       <label className="text-sm font-semibold text-slate-700">Notes & Strategy</label>
+                       <textarea
+                         name="description"
+                         value={formData.description}
+                         onChange={handleChange}
+                         rows="1"
+                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+                         placeholder="Optional notes..."
+                       ></textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4 border-t border-slate-100 mt-6">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-600/20 transition-all transform active:scale-95"
+                >
+                  {editingId ? 'Save Changes' : 'Create Asset'}
+                </button>
+              </div>
+            </form>
+        </Modal>
+      )}
+
+      {/* Assets Grid */}
+      <div className="grid grid-cols-1 gap-6">
+        {investments.length === 0 ? (
+          <div className="text-center py-16 bg-white border border-dashed border-slate-300 rounded-3xl">
+            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+               <TrendingUp size={32} className="text-blue-400" />
             </div>
-          ))
+            <h3 className="text-xl font-semibold text-slate-900 mb-1">No Investments Found</h3>
+            <p className="text-slate-500 max-w-sm mx-auto">
+              Start building your wealth by adding your first investment asset.
+            </p>
+            <button
+              onClick={() => {
+                resetForm()
+                setShowForm(true)
+              }}
+              className="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors"
+            >
+              Add Your First Asset
+            </button>
+          </div>
+        ) : (
+          investments.map((inv) => {
+             const profit = calculateProfit(inv)
+             const roi = calculateROI(inv)
+             const isProfitable = profit >= 0
+             
+             return (
+               <div key={inv._id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow group">
+                 <div className="flex flex-col md:flex-row gap-6 md:items-center justify-between">
+                   
+                   {/* Left: Basic Info */}
+                   <div className="flex-1 min-w-0">
+                     <div className="flex items-center gap-3 mb-2">
+                       <h3 className="text-lg font-bold text-slate-900 truncate">{inv.name}</h3>
+                       <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 uppercase tracking-wide">
+                         {getTypeLabel(inv.type)}
+                       </span>
+                       <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${getRiskColor(inv.riskLevel)}`}>
+                         {inv.riskLevel} Risk
+                       </span>
+                     </div>
+                     <div className="flex items-center gap-4 text-sm text-slate-500">
+                        {inv.broker && <div className="flex items-center gap-1.5"><Wallet size={14}/> {inv.broker}</div>}
+                        <div className="flex items-center gap-1.5"><Activity size={14}/> {new Date(inv.investmentDate).toLocaleDateString()}</div>
+                     </div>
+                   </div>
+
+                   {/* Middle: Stats */}
+                   <div className="flex flex-wrap items-center gap-8 md:px-8 md:border-l md:border-r border-slate-100">
+                      <div>
+                        <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Invested</p>
+                        <p className="font-bold text-slate-900">₹{inv.amount.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Current</p>
+                        <p className="font-bold text-slate-900">₹{inv.currentValue.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Return</p>
+                        <div className={`font-bold flex items-center gap-1 ${isProfitable ? 'text-green-600' : 'text-red-600'}`}>
+                           {isProfitable ? <TrendingUp size={14}/> : <TrendingDown size={14}/>}
+                           {roi}% <span className="text-xs opacity-80">(₹{Math.abs(profit).toLocaleString('en-IN')})</span>
+                        </div>
+                      </div>
+                   </div>
+
+                   {/* Right: Actions */}
+                   <div className="flex items-center gap-2 self-start md:self-center">
+                      <button
+                        onClick={() => setViewingId(viewingId === inv._id ? null : inv._id)}
+                        className={`p-2 rounded-lg transition-colors ${viewingId === inv._id ? 'bg-blue-100 text-blue-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}
+                        title="Expand Details"
+                      >
+                         <Eye size={20} />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(inv)}
+                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-blue-600"
+                        title="Edit"
+                      >
+                         <Edit2 size={20} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(inv._id)}
+                        className="p-2 hover:bg-red-50 rounded-lg transition-colors text-slate-400 hover:text-red-500"
+                        title="Delete"
+                      >
+                         <Trash2 size={20} />
+                      </button>
+                   </div>
+                 </div>
+
+                 {/* Expanded Details */}
+                 {viewingId === inv._id && (
+                   <div className="mt-6 pt-6 border-t border-slate-100 animate-in slide-in-from-top-2 duration-200">
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Unit Details</p>
+                           <div className="space-y-2 text-sm">
+                             <div className="flex justify-between">
+                                <span className="text-slate-500">Quantity</span>
+                                <span className="font-medium text-slate-900">{inv.quantity || 'N/A'}</span>
+                             </div>
+                             <div className="flex justify-between">
+                                <span className="text-slate-500">Avg. Buy Price</span>
+                                <span className="font-medium text-slate-900">{inv.pricePerUnit ? `₹${inv.pricePerUnit}` : 'N/A'}</span>
+                             </div>
+                           </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Performance</p>
+                           <div className="space-y-2 text-sm">
+                             <div className="flex justify-between">
+                                <span className="text-slate-500">Absolute Return</span>
+                                <span className={`font-medium ${isProfitable ? 'text-green-600' : 'text-red-600'}`}>
+                                  {isProfitable ? '+' : ''}₹{Math.abs(profit).toLocaleString('en-IN')}
+                                </span>
+                             </div>
+                             <div className="flex justify-between">
+                                <span className="text-slate-500">Expected CAGR</span>
+                                <span className="font-medium text-slate-900">{inv.expectedReturnPercentage ? `${inv.expectedReturnPercentage}%` : 'N/A'}</span>
+                             </div>
+                           </div>
+                        </div>
+
+                        {(inv.description) && (
+                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 md:col-span-1">
+                             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Notes & Strategy</p>
+                             <p className="text-sm text-slate-600 leading-relaxed italic">
+                               "{inv.description}"
+                             </p>
+                          </div>
+                        )}
+                     </div>
+                   </div>
+                 )}
+               </div>
+             )
+          })
         )}
       </div>
     </div>

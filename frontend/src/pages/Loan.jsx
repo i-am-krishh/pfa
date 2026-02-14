@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { CreditCard, Plus, Trash2, Edit2, Eye, AlertCircle } from 'lucide-react'
+import { CreditCard, Plus, Trash2, Edit2, Eye, AlertCircle, Calendar, DollarSign, Percent, CheckCircle2 } from 'lucide-react'
 
 export default function Loan() {
   const [loans, setLoans] = useState([])
@@ -26,13 +26,13 @@ export default function Loan() {
 
   const fetchLoans = async () => {
     try {
-      const response = await axios.get('https://pfa-1fqq.vercel.app/api/loan', {
+      const response = await axios.get('http://localhost:5000/api/loan', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setLoans(response.data.loans || [])
       
       const total = response.data.loans?.reduce((sum, loan) => sum + loan.totalAmount, 0) || 0
-      const paid = response.data.loans?.reduce((sum, loan) => sum + loan.amountPaid, 0) || 0
+      const paid = response.data.loans?.reduce((sum, loan) => sum + (loan.totalAmount - loan.remainingAmount), 0) || 0
       setTotalLoanAmount(total)
       setTotalPaid(paid)
     } catch (error) {
@@ -82,11 +82,16 @@ export default function Loan() {
       const endDate = new Date(startDate)
       endDate.setMonth(endDate.getMonth() + tenureMonths)
 
+      // Calculate amount paid based on current remaining amount input
+      // If user inputs remaining amount, we calculate paid as total - remaining
+      const remaining = parseFloat(formData.remainingAmount)
+      const paidObj = totalAmount - remaining
+
       const payload = {
         type: formData.type,
         lenderName: formData.lenderName,
         totalAmount: principal,
-        remainingAmount: parseFloat(formData.remainingAmount),
+        remainingAmount: remaining,
         rateOfInterest: rate,
         tenure: tenure,
         tenureUnit: formData.tenureUnit,
@@ -94,16 +99,16 @@ export default function Loan() {
         startDate: formData.startDate,
         endDate: endDate.toISOString().split('T')[0],
         description: formData.description,
-        amountPaid: 0,
+        amountPaid: principal - remaining, // Simple diff
         nextPaymentDate: new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       }
 
       if (editingId) {
-        await axios.put(`https://pfa-1fqq.vercel.app/api/loan/${editingId}`, payload, {
+        await axios.put(`http://localhost:5000/api/loan/${editingId}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       } else {
-        await axios.post('https://pfa-1fqq.vercel.app/api/loan', payload, {
+        await axios.post('http://localhost:5000/api/loan', payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       }
@@ -134,7 +139,7 @@ export default function Loan() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this loan?')) {
       try {
-        await axios.delete(`https://pfa-1fqq.vercel.app/api/loan/${id}`, {
+        await axios.delete(`http://localhost:5000/api/loan/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         fetchLoans()
@@ -173,359 +178,391 @@ export default function Loan() {
   }
 
   const calculateLoanProgress = (remaining, total) => {
+    if (total === 0) return 0
     return ((total - remaining) / total * 100).toFixed(1)
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-            <CreditCard className="text-red-400" size={32} />
-            Loan Management
+          <h1 className="text-3xl font-bold text-slate-900 mb-2 flex items-center gap-3">
+             <div className="p-2 bg-red-100/50 rounded-xl">
+               <CreditCard className="text-red-600" size={32} />
+             </div>
+             Loan Management
           </h1>
-          <p className="text-gray-400 mt-1">Track loans and calculate EMI with interest</p>
+          <p className="text-slate-500 text-lg">Track your liabilities and repayment progress</p>
         </div>
         <button
           onClick={() => {
             resetForm()
             setShowForm(true)
           }}
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition"
+          className="group flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white px-6 py-3 rounded-xl transition-all shadow-lg shadow-slate-900/20 font-semibold"
         >
-          <Plus size={20} />
-          Add Loan
+          <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
+          Add New Loan
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-red-900/30 to-red-800/20 border border-red-700/30 rounded-lg p-6">
-          <p className="text-gray-400 text-sm">Total Loan Amount</p>
-          <p className="text-2xl font-bold text-red-400 mt-2">₹{totalLoanAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
+      {/* Analytics Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+             <DollarSign size={80} className="text-red-600" />
+          </div>
+          <div className="relative z-10">
+             <p className="text-slate-500 font-medium mb-2 flex items-center gap-2">
+               <DollarSign size={16} /> Total Outstanding
+             </p>
+             <h3 className="text-3xl font-bold text-slate-900">
+               ₹{(totalLoanAmount - totalPaid).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+             </h3>
+             <p className="text-red-500 text-xs mt-2 font-medium">Principal Remaining</p>
+          </div>
         </div>
-        <div className="bg-gradient-to-br from-green-900/30 to-green-800/20 border border-green-700/30 rounded-lg p-6">
-          <p className="text-gray-400 text-sm">Amount Paid</p>
-          <p className="text-2xl font-bold text-green-400 mt-2">₹{totalPaid.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
+
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+             <CheckCircle2 size={80} className="text-green-600" />
+          </div>
+          <div className="relative z-10">
+             <p className="text-slate-500 font-medium mb-2 flex items-center gap-2">
+               <CheckCircle2 size={16} /> Total Repaid
+             </p>
+             <h3 className="text-3xl font-bold text-slate-900">
+               ₹{totalPaid.toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+             </h3>
+             <div className="w-full bg-slate-100 rounded-full h-1.5 mt-3">
+                <div 
+                   className="bg-green-500 h-1.5 rounded-full transition-all duration-1000" 
+                   style={{ width: `${totalLoanAmount > 0 ? (totalPaid / totalLoanAmount) * 100 : 0}%` }}
+                ></div>
+             </div>
+          </div>
         </div>
-        <div className="bg-gradient-to-br from-orange-900/30 to-orange-800/20 border border-orange-700/30 rounded-lg p-6">
-          <p className="text-gray-400 text-sm">Remaining Amount</p>
-          <p className="text-2xl font-bold text-orange-400 mt-2">₹{(totalLoanAmount - totalPaid).toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
+
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+             <CreditCard size={80} className="text-orange-600" />
+          </div>
+          <div className="relative z-10">
+             <p className="text-slate-500 font-medium mb-2 flex items-center gap-2">
+               <CreditCard size={16} /> Total Borrowed
+             </p>
+             <h3 className="text-3xl font-bold text-slate-900">
+               ₹{totalLoanAmount.toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+             </h3>
+             <p className="text-slate-400 text-xs mt-2">Original principal amount</p>
+          </div>
         </div>
       </div>
 
-      {/* Form */}
+      {/* Edit/Add Form Modal */}
       {showForm && (
-        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-white mb-4">
-            {editingId ? 'Edit Loan' : 'Add New Loan'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Type */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-100 animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 sticky top-0 z-10">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Loan Type</label>
-                <select
-                  name="type"
-                  value={formData.type}
-                  onChange={handleChange}
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white focus:outline-none focus:border-red-500"
-                >
-                  <option value="personal_loan">Personal Loan</option>
-                  <option value="home_loan">Home Loan</option>
-                  <option value="car_loan">Car Loan</option>
-                  <option value="education_loan">Education Loan</option>
-                  <option value="credit_card">Credit Card</option>
-                  <option value="other">Other</option>
-                </select>
+                <h2 className="text-xl font-bold text-slate-800">
+                  {editingId ? 'Edit Loan Details' : 'Add New Liability'}
+                </h2>
+                <p className="text-slate-500 text-sm">Enter loan information below</p>
               </div>
-
-              {/* Lender Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Lender Name</label>
-                <input
-                  type="text"
-                  name="lenderName"
-                  value={formData.lenderName}
-                  onChange={handleChange}
-                  placeholder="e.g., HDFC Bank, ICICI"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-                  required
-                />
-              </div>
-
-              {/* Total Amount */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Total Loan Amount (₹)</label>
-                <input
-                  type="number"
-                  name="totalAmount"
-                  value={formData.totalAmount}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-                  required
-                />
-              </div>
-
-              {/* Remaining Amount */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Remaining Amount (₹)</label>
-                <input
-                  type="number"
-                  name="remainingAmount"
-                  value={formData.remainingAmount}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-                  required
-                />
-              </div>
-
-              {/* Interest Rate */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Rate of Interest (% per annum)</label>
-                <input
-                  type="number"
-                  name="rateOfInterest"
-                  value={formData.rateOfInterest}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-                  required
-                />
-              </div>
-
-              {/* Tenure */}
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Tenure</label>
-                  <input
-                    type="number"
-                    name="tenure"
-                    value={formData.tenure}
+              <button 
+                onClick={resetForm}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+              >
+                <Trash2 className="rotate-45" size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Type */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Loan Type</label>
+                  <select
+                    name="type"
+                    value={formData.type}
                     onChange={handleChange}
-                    placeholder="0"
-                    step="0.01"
-                    min="0"
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all"
+                  >
+                    <option value="personal_loan">Personal Loan</option>
+                    <option value="home_loan">Home Loan</option>
+                    <option value="car_loan">Car Loan</option>
+                    <option value="education_loan">Education Loan</option>
+                    <option value="credit_card">Credit Card</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                {/* Lender */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Lender / Bank</label>
+                  <input
+                    type="text"
+                    name="lenderName"
+                    value={formData.lenderName}
+                    onChange={handleChange}
+                    placeholder="e.g. HDFC Bank"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all placeholder:text-slate-400"
                     required
                   />
                 </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Unit</label>
-                  <select
-                    name="tenureUnit"
-                    value={formData.tenureUnit}
+
+                {/* Total Amount */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Total Sanctioned Amount (₹)</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">₹</span>
+                    <input
+                      type="number"
+                      name="totalAmount"
+                      value={formData.totalAmount}
+                      onChange={handleChange}
+                      placeholder="0.00"
+                      className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all placeholder:text-slate-400"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Remaining Amount */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Outstanding Balance (₹)</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">₹</span>
+                    <input
+                      type="number"
+                      name="remainingAmount"
+                      value={formData.remainingAmount}
+                      onChange={handleChange}
+                      placeholder="0.00"
+                      className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all placeholder:text-slate-400"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Interest Rate */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Interest Rate (%)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      name="rateOfInterest"
+                      value={formData.rateOfInterest}
+                      onChange={handleChange}
+                      placeholder="0.00"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all placeholder:text-slate-400"
+                      required
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">%</span>
+                  </div>
+                </div>
+
+                {/* Tenure */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Tenure Period</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      name="tenure"
+                      value={formData.tenure}
+                      onChange={handleChange}
+                      placeholder="0"
+                      className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all placeholder:text-slate-400"
+                      required
+                    />
+                    <select
+                      name="tenureUnit"
+                      value={formData.tenureUnit}
+                      onChange={handleChange}
+                      className="w-32 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all"
+                    >
+                      <option value="months">Months</option>
+                      <option value="years">Years</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Start Date */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Start Date</label>
+                  <input
+                    type="date"
+                    name="startDate"
+                    value={formData.startDate}
                     onChange={handleChange}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white focus:outline-none focus:border-red-500"
-                  >
-                    <option value="months">Months</option>
-                    <option value="years">Years</option>
-                  </select>
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all text-slate-600"
+                    required
+                  />
+                </div>
+
+                <div className="md:col-span-2 space-y-2">
+                   <label className="text-sm font-semibold text-slate-700">Notes (Optional)</label>
+                   <textarea
+                     name="description"
+                     value={formData.description}
+                     onChange={handleChange}
+                     rows="3"
+                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all placeholder:text-slate-400"
+                     placeholder="Additional details..."
+                   ></textarea>
                 </div>
               </div>
 
-              {/* Start Date */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Start Date</label>
-                <input
-                  type="date"
-                  name="startDate"
-                  value={formData.startDate}
-                  onChange={handleChange}
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white focus:outline-none focus:border-red-500"
-                  required
-                />
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold shadow-lg shadow-red-600/20 transition-all transform active:scale-95"
+                >
+                  {editingId ? 'Save Changes' : 'Create Loan'}
+                </button>
               </div>
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Description (Optional)</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                placeholder="Add notes about this loan..."
-                rows="3"
-                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-              ></textarea>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition font-medium"
-              >
-                {editingId ? 'Update Loan' : 'Add Loan'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg transition font-medium"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
 
-      {/* Loans List */}
-      <div className="space-y-4">
+      {/* Loans Grid */}
+      <div className="grid grid-cols-1 gap-6">
         {loans.length === 0 ? (
-          <div className="text-center py-12 bg-slate-800/50 border border-slate-700 rounded-lg">
-            <CreditCard size={40} className="mx-auto text-gray-500 mb-3" />
-            <p className="text-gray-400">No loans added yet.</p>
+          <div className="text-center py-16 bg-white border border-dashed border-slate-300 rounded-3xl">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+               <CreditCard size={32} className="text-red-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-slate-900 mb-1">No Loans Found</h3>
+            <p className="text-slate-500 max-w-sm mx-auto">
+              You're debt free! Or you haven't added any yet.
+            </p>
+            <button
+              onClick={() => {
+                resetForm()
+                setShowForm(true)
+              }}
+              className="mt-6 px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-medium transition-colors"
+            >
+              Add a Loan
+            </button>
           </div>
         ) : (
           loans.map((loan) => {
-            const tenureMonths = loan.tenureUnit === 'years' ? loan.tenure * 12 : loan.tenure
-            const emi = calculateEMI(loan.totalAmount, loan.rateOfInterest, tenureMonths)
-            const totalInterest = calculateTotalInterest(loan.totalAmount, loan.rateOfInterest, tenureMonths)
-            const progress = calculateLoanProgress(loan.remainingAmount, loan.totalAmount)
-            const monthsPassed = Math.floor((new Date() - new Date(loan.startDate)) / (1000 * 60 * 60 * 24 * 30))
+             const tenureMonths = loan.tenureUnit === 'years' ? loan.tenure * 12 : loan.tenure
+             const emi = calculateEMI(loan.totalAmount, loan.rateOfInterest, tenureMonths)
+             const totalInterest = calculateTotalInterest(loan.totalAmount, loan.rateOfInterest, tenureMonths)
+             const progress = calculateLoanProgress(loan.remainingAmount, loan.totalAmount)
 
-            return (
-              <div key={loan._id} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-bold text-white">{loan.lenderName}</h3>
-                      <span className="text-xs px-2 py-1 bg-red-900/50 text-red-300 rounded-full">
-                        {getTypeLabel(loan.type)}
-                      </span>
-                    </div>
-                    <p className="text-gray-400 text-sm mt-1">
-                      {loan.description || 'No description'}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setViewingId(viewingId === loan._id ? null : loan._id)}
-                      className="p-2 bg-blue-900/50 hover:bg-blue-800 text-blue-400 rounded transition"
-                      title="View details"
-                    >
-                      <Eye size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleEdit(loan)}
-                      className="p-2 bg-purple-900/50 hover:bg-purple-800 text-purple-400 rounded transition"
-                      title="Edit"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(loan._id)}
-                      className="p-2 bg-red-900/50 hover:bg-red-800 text-red-400 rounded transition"
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </div>
+             return (
+               <div key={loan._id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow group">
+                 <div className="flex flex-col md:flex-row gap-6 md:items-center justify-between">
+                   
+                   {/* Left: Basic Info */}
+                   <div className="flex-1 min-w-0">
+                     <div className="flex items-center gap-3 mb-2">
+                       <h3 className="text-lg font-bold text-slate-900 truncate">{loan.lenderName}</h3>
+                       <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 uppercase tracking-wide border border-red-100">
+                         {getTypeLabel(loan.type)}
+                       </span>
+                     </div>
+                     <div className="flex items-center gap-4 text-sm text-slate-500">
+                        <div className="flex items-center gap-1.5"><Calendar size={14}/> {new Date(loan.startDate).toLocaleDateString()}</div>
+                        <div className="flex items-center gap-1.5"><Percent size={14}/> {loan.rateOfInterest}% Interest</div>
+                     </div>
+                   </div>
 
-                {/* Loan Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                  <div>
-                    <p className="text-gray-400 text-xs">Total Amount</p>
-                    <p className="text-white font-semibold">₹{loan.totalAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs">Monthly EMI</p>
-                    <p className="text-white font-semibold">₹{parseFloat(emi).toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs">Interest Rate</p>
-                    <p className="text-white font-semibold">{loan.rateOfInterest}% p.a.</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs">Total Interest</p>
-                    <p className="text-white font-semibold">₹{parseFloat(totalInterest).toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-                  </div>
-                </div>
+                   {/* Middle: Progress Bar Section */}
+                   <div className="flex-1 max-w-sm w-full">
+                      <div className="flex justify-between items-end mb-2">
+                         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Repayment Progress</span>
+                         <span className="text-sm font-bold text-slate-700">{progress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                         <div
+                           className={`h-full rounded-full transition-all duration-1000 ${
+                             progress < 30 ? 'bg-red-500' : progress < 70 ? 'bg-orange-500' : 'bg-green-500'
+                           }`}
+                           style={{ width: `${progress}%` }}
+                         ></div>
+                      </div>
+                      <div className="flex justify-between mt-2 text-xs text-slate-500">
+                         <span>₹{(loan.totalAmount - loan.remainingAmount).toLocaleString('en-IN')} Paid</span>
+                         <span>₹{loan.remainingAmount.toLocaleString('en-IN')} Remaining</span>
+                      </div>
+                   </div>
 
-                {/* Progress Bar */}
-                <div className="mt-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-gray-400 text-sm">Loan Repayment Progress</p>
-                    <p className="text-white font-semibold">{progress}%</p>
-                  </div>
-                  <div className="w-full bg-slate-700 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all ${
-                        progress < 50
-                          ? 'bg-green-500'
-                          : progress < 90
-                          ? 'bg-yellow-500'
-                          : 'bg-red-500'
-                      }`}
-                      style={{ width: `${progress}%` }}
-                    ></div>
-                  </div>
-                </div>
+                   {/* Right: Actions */}
+                   <div className="flex items-center gap-2 self-start md:self-center">
+                      <button
+                        onClick={() => setViewingId(viewingId === loan._id ? null : loan._id)}
+                        className={`p-2 rounded-lg transition-colors ${viewingId === loan._id ? 'bg-blue-100 text-blue-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}
+                        title="Expand Details"
+                      >
+                         <Eye size={20} />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(loan)}
+                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-blue-600"
+                        title="Edit"
+                      >
+                         <Edit2 size={20} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(loan._id)}
+                        className="p-2 hover:bg-red-50 rounded-lg transition-colors text-slate-400 hover:text-red-500"
+                        title="Delete"
+                      >
+                         <Trash2 size={20} />
+                      </button>
+                   </div>
+                 </div>
 
-                {/* Expanded View */}
-                {viewingId === loan._id && (
-                  <div className="mt-4 pt-4 border-t border-slate-700 space-y-3">
-                    <div className="bg-blue-900/20 border border-blue-800/30 rounded p-3">
-                      <p className="text-blue-300 text-sm font-semibold mb-2 flex items-center gap-2">
-                        <AlertCircle size={16} />
-                        EMI & Interest Calculation
-                      </p>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-gray-400 text-xs">Monthly EMI</p>
-                          <p className="text-blue-300 font-semibold">₹{parseFloat(emi).toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-                          <p className="text-gray-500 text-xs mt-1">Formula: (P × r × (1+r)^n) / ((1+r)^n - 1)</p>
+                 {/* Expanded Details */}
+                 {viewingId === loan._id && (
+                   <div className="mt-6 pt-6 border-t border-slate-100 animate-in slide-in-from-top-2 duration-200">
+                     <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+                        <div className="flex items-center gap-2 mb-4 text-slate-800 font-semibold">
+                           <AlertCircle size={18} className="text-blue-500"/>
+                           <h3>Loan Analysis</h3>
                         </div>
-                        <div>
-                          <p className="text-gray-400 text-xs">Total Interest to Pay</p>
-                          <p className="text-blue-300 font-semibold">₹{parseFloat(totalInterest).toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-                          <p className="text-gray-500 text-xs mt-1">Total Payments: {tenureMonths} months</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                           <div>
+                              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Monthly EMI</p>
+                              <p className="text-lg font-bold text-slate-900">₹{parseFloat(emi).toLocaleString('en-IN')}</p>
+                           </div>
+                           <div>
+                              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Total Interest</p>
+                              <p className="text-lg font-bold text-red-600">₹{parseFloat(totalInterest).toLocaleString('en-IN')}</p>
+                           </div>
+                           <div>
+                              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Total Repayment</p>
+                              <p className="text-lg font-bold text-slate-900">₹{(loan.totalAmount + parseFloat(totalInterest)).toLocaleString('en-IN')}</p>
+                           </div>
+                           <div>
+                              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Tenure</p>
+                              <p className="text-lg font-bold text-slate-900">{loan.tenure} {loan.tenureUnit}</p>
+                           </div>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-gray-400 text-sm">Remaining Amount</p>
-                        <p className="text-white font-semibold">₹{loan.remainingAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 text-sm">Amount Paid</p>
-                        <p className="text-white font-semibold">₹{loan.amountPaid.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 text-sm">Loan Period</p>
-                        <p className="text-white font-semibold">{loan.tenure} {loan.tenureUnit}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 text-sm">Start Date</p>
-                        <p className="text-white font-semibold">{new Date(loan.startDate).toLocaleDateString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 text-sm">End Date</p>
-                        <p className="text-white font-semibold">{new Date(loan.endDate).toLocaleDateString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 text-sm">Months Elapsed</p>
-                        <p className="text-white font-semibold">{monthsPassed} months</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
+                         {(loan.description) && (
+                           <div className="mt-4 pt-4 border-t border-slate-200/50">
+                              <p className="text-sm text-slate-600 italic">"{loan.description}"</p>
+                           </div>
+                        )}
+                     </div>
+                   </div>
+                 )}
+               </div>
+             )
           })
         )}
       </div>

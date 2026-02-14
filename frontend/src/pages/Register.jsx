@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { TrendingUp, User, Mail, Phone, Lock, AlertCircle, Check } from 'lucide-react';
 
-const API_URL = 'https://pfa-1fqq.vercel.app/api';
+const API_URL = 'http://localhost:5000/api';
 
 export default function Register() {
     const navigate = useNavigate();

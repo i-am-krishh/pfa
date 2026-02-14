@@ -1,17 +1,17 @@
 import express from 'express';
-import { 
-    saveTaxDetails, 
-    getTaxDetails, 
-    getAllTaxRecords, 
-    deleteTaxRecord, 
-    generateITRSummary 
+import {
+    saveTaxDetails,
+    getTaxDetails,
+    getAllTaxRecords,
+    deleteTaxRecord,
+    generateITRSummary
 } from '../controllers/taxSavingController.js';
-import { verifyToken } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // All routes require authentication
-router.use(verifyToken);
+router.use(authenticate);
 
 // Save or update tax details
 router.post('/', saveTaxDetails);

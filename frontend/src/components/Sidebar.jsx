@@ -54,6 +54,12 @@ export default function Sidebar({
       ]
     },
     {
+      label: 'MARKET',
+      items: [
+        { label: 'Stock Market', path: '/stocks', icon: TrendingUp }
+      ]
+    },
+    {
       label: 'TOOLS',
       items: [
         { label: 'Tax Saving', path: '/tax-saving', icon: Calculator },
@@ -311,7 +317,7 @@ export default function Sidebar({
           <div className="mb-6 px-1">
              <div className="flex justify-between items-end mb-2">
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Monthly Budget</span>
-                <span className="text-xs font-bold text-blue-400">75%</span>
+                <span className="text-xs font-bold text-blue-400">85%</span>
              </div>
              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 w-3/4 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.4)]" />
