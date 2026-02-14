@@ -27,23 +27,29 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Database connection
+// Database connection
 const connectDB = async () => {
     try {
         if (mongoose.connection.readyState === 1) {
+            console.log('Using existing MongoDB connection');
             return;
         }
+        console.log('Connecting to MongoDB...');
         await mongoose.connect(MONGODB_URI, {
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
+            dbName: 'PersonalFinance' // Explicitly set DB name
         });
         console.log('MongoDB connected successfully');
     } catch (error) {
         console.error('MongoDB connection error:', error);
+        // Do not swallow error? If we do, future calls fail silently or timeout.
+        throw error;
     }
 };
 
 // Connect immediately
-connectDB();
+connectDB().catch(err => console.error("Initial connection failed", err));
 
 // API Routes need to await DB connection? 
 // Mongoose buffers automatically, but if it times out, it means connection failed.
