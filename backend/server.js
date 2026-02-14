@@ -27,15 +27,27 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Database connection
-mongoose.connect(MONGODB_URI)
-    .then(() => {
+const connectDB = async () => {
+    try {
+        if (mongoose.connection.readyState === 1) {
+            return;
+        }
+        await mongoose.connect(MONGODB_URI, {
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+        });
         console.log('MongoDB connected successfully');
-    })
-    .catch((error) => {
-        console.log('MongoDB connection error:', error);
-        // In serverless, do not exit the process, just log the error
-        // process.exit(1);
-    });
+    } catch (error) {
+        console.error('MongoDB connection error:', error);
+    }
+};
+
+// Connect immediately
+connectDB();
+
+// API Routes need to await DB connection? 
+// Mongoose buffers automatically, but if it times out, it means connection failed.
+// The buffering timeout suggests it couldn't connect at all.
 
 // API Routes
 app.use('/api/auth', authRoutes);
