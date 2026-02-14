@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { PiggyBank, Plus, Trash2, Calendar, Target, TrendingUp, X, Percent, Wallet, ArrowUpRight } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 export default function Savings() {
     const navigate = useNavigate();

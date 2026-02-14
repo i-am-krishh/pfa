@@ -4,7 +4,7 @@ import axios from 'axios';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, PiggyBank, Wallet, RefreshCw, Activity, ArrowUpRight, ArrowDownRight, CreditCard, DollarSign } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 export default function Dashboard() {
     const navigate = useNavigate();

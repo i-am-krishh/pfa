@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { CreditCard, Plus, Trash2, Edit2, Eye, AlertCircle, Calendar, DollarSign, Percent, CheckCircle2 } from 'lucide-react'
 
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
 export default function Loan() {
   const [loans, setLoans] = useState([])
   const [showForm, setShowForm] = useState(false)
@@ -26,7 +28,7 @@ export default function Loan() {
 
   const fetchLoans = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/loan', {
+      const response = await axios.get(`${API_URL}/loan`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setLoans(response.data.loans || [])
@@ -104,11 +106,11 @@ export default function Loan() {
       }
 
       if (editingId) {
-        await axios.put(`http://localhost:5000/api/loan/${editingId}`, payload, {
+        await axios.put(`${API_URL}/loan/${editingId}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       } else {
-        await axios.post('http://localhost:5000/api/loan', payload, {
+        await axios.post(`${API_URL}/loan`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       }
@@ -139,7 +141,7 @@ export default function Loan() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this loan?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/loan/${id}`, {
+        await axios.delete(`${API_URL}/loan/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         fetchLoans()

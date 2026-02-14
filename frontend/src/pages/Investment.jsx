@@ -4,6 +4,8 @@ import { TrendingUp, Plus, Trash2, Edit2, Eye, TrendingDown, Wallet, PieChart, A
 import Modal from '../components/Modal'
 import { getTrendingStocks, getMutualFunds } from '../services/stockApi'
 
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
 export default function Investment() {
   const [investments, setInvestments] = useState([])
   const [showForm, setShowForm] = useState(false)
@@ -74,7 +76,7 @@ export default function Investment() {
 
   const fetchInvestments = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/investment', {
+      const response = await axios.get(`${API_URL}/investment`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setInvestments(response.data.investments)
@@ -111,11 +113,11 @@ export default function Investment() {
       }
 
       if (editingId) {
-        await axios.put(`http://localhost:5000/api/investment/${editingId}`, payload, {
+        await axios.put(`${API_URL}/investment/${editingId}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       } else {
-        await axios.post('http://localhost:5000/api/investment', payload, {
+        await axios.post(`${API_URL}/investment`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       }
@@ -148,7 +150,7 @@ export default function Investment() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this investment?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/investment/${id}`, {
+        await axios.delete(`${API_URL}/investment/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         fetchInvestments()

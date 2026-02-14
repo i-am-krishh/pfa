@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Calculator, Download, TrendingDown, AlertCircle, CheckCircle2, Lightbulb, DollarSign, ChevronDown, ChevronUp, FileText, X } from 'lucide-react'
 
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
 export default function TaxSaving() {
   const [taxData, setTaxData] = useState(null)
   const [showForm, setShowForm] = useState(false)
@@ -34,7 +36,7 @@ export default function TaxSaving() {
   const fetchTaxDetails = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('http://localhost:5000/api/tax-saving', {
+      const response = await axios.get(`${API_URL}/tax-saving`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setTaxData(response.data.taxSaving)
@@ -121,7 +123,7 @@ export default function TaxSaving() {
     e.preventDefault()
     try {
       setLoading(true)
-      const response = await axios.post('http://localhost:5000/api/tax-saving', formData, {
+      const response = await axios.post(`${API_URL}/tax-saving`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setTaxData(response.data.taxSaving)
@@ -137,7 +139,7 @@ export default function TaxSaving() {
 
   const downloadITRSummary = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/tax-saving/itr-summary', {
+      const response = await axios.get(`${API_URL}/tax-saving/itr-summary`, {
         headers: { Authorization: `Bearer ${token}` }
       })
 

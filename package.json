@@ -7,7 +7,8 @@
     "frontend": "cd frontend && npm run dev",
     "backend": "cd backend && npm start",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
-    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install && cd .."
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ..",
+    "postinstall": "cd backend && npm install"
   },
   "keywords": [
     "finance",
