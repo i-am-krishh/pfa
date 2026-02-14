@@ -16,11 +16,11 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/PersonalFinance';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGODB_ATLAS_URI || 'mongodb://localhost:27017/PersonalFinance';
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL].filter(Boolean),
+    origin: ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL, /\.vercel\.app$/].filter(Boolean),
     credentials: true
 }));
 app.use(express.json());
@@ -33,7 +33,8 @@ mongoose.connect(MONGODB_URI)
     })
     .catch((error) => {
         console.log('MongoDB connection error:', error);
-        process.exit(1);
+        // In serverless, do not exit the process, just log the error
+        // process.exit(1);
     });
 
 // API Routes
