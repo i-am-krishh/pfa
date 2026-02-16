@@ -2,6 +2,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
+import Chatbot from '../components/Chatbot'
 
 /**
  * DashboardLayout - Modern layout with collapsible sidebar
@@ -130,12 +131,15 @@ export default function DashboardLayout() {
       </main>
 
       {/* Mobile Overlay */}
-      {sidebarOpen && (
+      { sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
           className="fixed inset-0 z-30 bg-black/20 lg:hidden backdrop-blur-sm"
         />
       )}
+      
+      {/* Floating Chatbot */}
+      <Chatbot />
     </div>
   )
 }
