@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Calculator, Download, TrendingDown, AlertCircle, CheckCircle2, Lightbulb, DollarSign, ChevronDown, ChevronUp, FileText, X } from 'lucide-react'
+import { Calculator, Download, TrendingDown, AlertCircle, CheckCircle2, Lightbulb, DollarSign, ChevronDown, ChevronUp, FileText, X, Wallet } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
