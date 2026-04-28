@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { 
   Menu, X, LayoutDashboard, TrendingUp, ShoppingCart, 
   PiggyBank, LogOut, ChevronDown, TrendingUpIcon, 
-  CreditCard, Calculator, Plus, Wallet
+  CreditCard, Calculator, Plus, Wallet, Users, Activity
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -57,6 +57,12 @@ export default function Sidebar({
       label: 'MARKET',
       items: [
         { label: 'Stock Market', path: '/stocks', icon: TrendingUp }
+      ]
+    },
+    {
+      label: 'FAMILY',
+      items: [
+        { label: 'Family Finance', path: '/family', icon: Users }
       ]
     },
     {

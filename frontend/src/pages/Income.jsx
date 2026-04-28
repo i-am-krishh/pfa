@@ -12,6 +12,7 @@ export default function Income() {
     const [loading, setLoading] = useState(false);
     const [filterCategory, setFilterCategory] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
+    const [familyGroups, setFamilyGroups] = useState([]);
     
     // Form State
     const [formData, setFormData] = useState({
@@ -21,14 +22,30 @@ export default function Income() {
         date: new Date().toISOString().split('T')[0],
         category: '',
         isRecurring: false,
-        frequency: 'monthly'
+        frequency: 'monthly',
+        familyGroupId: '',
+        familySyncEnabled: false
     });
 
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token) navigate('/login');
-        else fetchIncomes(token);
+        else {
+            fetchIncomes(token);
+            fetchFamilyGroups(token);
+        }
     }, [navigate]);
+
+    const fetchFamilyGroups = async (token) => {
+        try {
+            const response = await axios.get(`${API_URL}/family/my-families`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setFamilyGroups(response.data.data);
+        } catch (error) {
+            console.error('Error fetching family groups:', error);
+        }
+    };
 
     const fetchIncomes = async (token) => {
         try {
@@ -55,7 +72,15 @@ export default function Income() {
         setLoading(true);
 
         try {
-            await axios.post(`${API_URL}/income`, formData, {
+            const submitData = {
+                ...formData,
+                familySync: {
+                    enabled: formData.familySyncEnabled,
+                    familyId: formData.familySyncEnabled && familyGroups.length > 0 ? familyGroups[0]._id : null,
+                    visibility: 'family'
+                }
+            };
+            await axios.post(`${API_URL}/income`, submitData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             // Reset form
@@ -66,7 +91,9 @@ export default function Income() {
                 date: new Date().toISOString().split('T')[0],
                 category: '',
                 isRecurring: false,
-                frequency: 'monthly'
+                frequency: 'monthly',
+                familyGroupId: '',
+                familySyncEnabled: false
             });
             setShowForm(false);
             fetchIncomes(token);
@@ -342,6 +369,38 @@ export default function Income() {
                                     className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none placeholder:text-slate-300 resize-none"
                                 />
                             </div>
+
+                            {familyGroups.length > 0 && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Family Group (Optional)</label>
+                                    <select
+                                        name="familyGroupId"
+                                        value={formData.familyGroupId}
+                                        onChange={handleChange}
+                                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                                    >
+                                        <option value="">Personal (None)</option>
+                                        {familyGroups.map(group => (
+                                            <option key={group._id} value={group._id}>{group.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {!formData.familyGroupId && familyGroups.length > 0 && (
+                                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                    <input 
+                                        type="checkbox"
+                                        id="familySync"
+                                        checked={formData.familySyncEnabled}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, familySyncEnabled: e.target.checked }))}
+                                        className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                    <label htmlFor="familySync" className="text-sm font-medium text-slate-700 cursor-pointer">
+                                        Sync with Family Dashboard
+                                    </label>
+                                </div>
+                            )}
 
                             <div className="pt-2">
                                 <button

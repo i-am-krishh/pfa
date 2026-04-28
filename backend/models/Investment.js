@@ -6,6 +6,11 @@ const investmentSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    familyGroupId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'FamilyGroup',
+        default: null
+    },
     type: {
         type: String,
         enum: ['stocks', 'mutual_funds', 'crypto', 'bonds', 'real_estate', 'other'],
@@ -55,6 +60,11 @@ const investmentSchema = new mongoose.Schema({
     description: {
         type: String,
         trim: true
+    },
+    familySync: {
+        enabled: { type: Boolean, default: false },
+        familyId: { type: mongoose.Schema.Types.ObjectId, ref: 'FamilyGroup', default: null },
+        visibility: { type: String, enum: ['private', 'family'], default: 'private' }
     },
     createdAt: {
         type: Date,

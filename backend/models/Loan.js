@@ -6,6 +6,16 @@ const loanSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    familyGroupId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'FamilyGroup',
+        default: null
+    },
+    familySync: {
+        enabled: { type: Boolean, default: false },
+        familyId: { type: mongoose.Schema.Types.ObjectId, ref: 'FamilyGroup', default: null },
+        visibility: { type: String, enum: ['private', 'family'], default: 'private' }
+    },
     type: {
         type: String,
         enum: ['personal_loan', 'home_loan', 'car_loan', 'education_loan', 'credit_card', 'other'],

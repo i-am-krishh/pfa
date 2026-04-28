@@ -1,18 +1,32 @@
 import Income from '../models/Income.js';
+import FamilyGroup from '../models/FamilyGroup.js';
 
 export const addIncome = async (req, res) => {
     try {
-        const { source, amount, description, date, category, isRecurring, frequency } = req.body;
+        const { source, amount, description, date, category, isRecurring, frequency, familyGroupId, familySync } = req.body;
+
+        if (familyGroupId) {
+            const familyGroup = await FamilyGroup.findById(familyGroupId);
+            if (!familyGroup) {
+                return res.status(404).json({ success: false, message: 'Family group not found' });
+            }
+            const isApprovedMember = familyGroup.members.some(m => m.user.toString() === req.user.userId && (m.status === 'Approved' || familyGroup.admin.toString() === req.user.userId));
+            if (!isApprovedMember) {
+                return res.status(403).json({ success: false, message: 'Not an approved member of this family group' });
+            }
+        }
 
         const income = new Income({
             userId: req.user.userId,
+            familyGroupId: familyGroupId || null,
             source,
             amount,
             description,
             date,
             category,
             isRecurring,
-            frequency
+            frequency,
+            familySync: familySync || { enabled: false }
         });
 
         await income.save();
