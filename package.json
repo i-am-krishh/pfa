@@ -4,11 +4,14 @@
   "description": "Complete Personal Finance Management Web Application - MERN Stack",
   "main": "index.js",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build && cd ..",
+    "preinstall": "npm audit --audit-level=moderate || true",
+    "postinstall": "npm audit fix --force || true && cd backend && npm install && cd ../frontend && npm install && cd ..",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm install && npm run build",
     "frontend": "cd frontend && npm run dev",
     "backend": "cd backend && npm run dev",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
-    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install && cd .."
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install"
   },
   "keywords": [
     "finance",
