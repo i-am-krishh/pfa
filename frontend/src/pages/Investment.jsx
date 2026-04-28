@@ -17,6 +17,7 @@ export default function Investment() {
   const [suggestions, setSuggestions] = useState([])
   const [isSearching, setIsSearching] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [familyGroups, setFamilyGroups] = useState([])
 
   const [formData, setFormData] = useState({
     type: 'stocks',
@@ -29,7 +30,9 @@ export default function Investment() {
     expectedReturnPercentage: '',
     riskLevel: 'medium',
     broker: '',
-    description: ''
+    description: '',
+    familyGroupId: '',
+    familySyncEnabled: false
   })
 
   // Debounced search for stocks
@@ -89,7 +92,19 @@ export default function Investment() {
 
   useEffect(() => {
     fetchInvestments()
+    fetchFamilyGroups()
   }, [])
+
+  const fetchFamilyGroups = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/family/my-families`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setFamilyGroups(response.data.data)
+    } catch (error) {
+      console.error('Error fetching family groups:', error)
+    }
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -109,7 +124,12 @@ export default function Investment() {
         currentValue: parseFloat(formData.currentValue),
         quantity: formData.quantity ? parseFloat(formData.quantity) : 0,
         pricePerUnit: formData.pricePerUnit ? parseFloat(formData.pricePerUnit) : 0,
-        expectedReturnPercentage: formData.expectedReturnPercentage ? parseFloat(formData.expectedReturnPercentage) : 0
+        expectedReturnPercentage: formData.expectedReturnPercentage ? parseFloat(formData.expectedReturnPercentage) : 0,
+        familySync: {
+          enabled: formData.familySyncEnabled,
+          familyId: formData.familySyncEnabled && familyGroups.length > 0 ? familyGroups[0]._id : null,
+          visibility: 'family'
+        }
       }
 
       if (editingId) {
@@ -141,7 +161,8 @@ export default function Investment() {
       expectedReturnPercentage: investment.expectedReturnPercentage,
       riskLevel: investment.riskLevel,
       broker: investment.broker,
-      description: investment.description
+      description: investment.description,
+      familyGroupId: investment.familyGroupId || ''
     })
     setEditingId(investment._id)
     setShowForm(true)
@@ -172,7 +193,9 @@ export default function Investment() {
       expectedReturnPercentage: '',
       riskLevel: 'medium',
       broker: '',
-      description: ''
+      description: '',
+      familyGroupId: '',
+      familySyncEnabled: false
     })
     setEditingId(null)
     setShowForm(false)
@@ -537,6 +560,40 @@ export default function Investment() {
                     </div>
                   </div>
                 </div>
+
+                {familyGroups.length > 0 && (
+                  <div className="md:col-span-2 border-t border-slate-100 pt-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Family Group (Optional)</label>
+                      <select
+                        name="familyGroupId"
+                        value={formData.familyGroupId}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      >
+                        <option value="">Personal (None)</option>
+                        {familyGroups.map(group => (
+                          <option key={group._id} value={group._id}>{group.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {!formData.familyGroupId && familyGroups.length > 0 && (
+                  <div className="md:col-span-2 flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <input 
+                      type="checkbox"
+                      id="familySync"
+                      checked={formData.familySyncEnabled}
+                      onChange={(e) => setFormData(prev => ({ ...prev, familySyncEnabled: e.target.checked }))}
+                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="familySync" className="text-sm font-medium text-slate-700 cursor-pointer">
+                      Sync with Family Dashboard
+                    </label>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4 pt-4 border-t border-slate-100 mt-6">

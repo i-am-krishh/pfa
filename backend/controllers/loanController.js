@@ -2,10 +2,11 @@ import Loan from '../models/Loan.js';
 
 export const addLoan = async (req, res) => {
     try {
-        const { type, lenderName, totalAmount, remainingAmount, rateOfInterest, tenure, tenureUnit, monthlyEMI, startDate, endDate, description } = req.body;
+        const { type, lenderName, totalAmount, remainingAmount, rateOfInterest, tenure, tenureUnit, monthlyEMI, startDate, endDate, description, familyGroupId, familySync } = req.body;
 
         const loan = new Loan({
             userId: req.user.userId,
+            familyGroupId: familyGroupId || null,
             type,
             lenderName,
             totalAmount,
@@ -16,7 +17,8 @@ export const addLoan = async (req, res) => {
             monthlyEMI,
             startDate,
             endDate,
-            description
+            description,
+            familySync: familySync || { enabled: false }
         });
 
         await loan.save();

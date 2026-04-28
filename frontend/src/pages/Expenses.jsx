@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { CreditCard, Plus, Cross, Calendar, Tag, Search, TrendingDown, Filter, X, ShoppingBag } from 'lucide-react';
+import { CreditCard, Plus, Cross, Calendar, Tag, Search, TrendingDown, Filter, X, ShoppingBag, AlertTriangle } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -10,22 +10,40 @@ export default function Expenses() {
     const [expenses, setExpenses] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [formError, setFormError] = useState('');
     const [filterCategory, setFilterCategory] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
+    const [familyGroups, setFamilyGroups] = useState([]);
 
     const [formData, setFormData] = useState({
         category: 'food',
         amount: '',
         description: '',
         date: new Date().toISOString().split('T')[0],
-        paymentMethod: 'cash'
+        paymentMethod: 'cash',
+        familyGroupId: '',
+        familySyncEnabled: false
     });
 
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token) navigate('/login');
-        else fetchExpenses(token);
+        else {
+            fetchExpenses(token);
+            fetchFamilyGroups(token);
+        }
     }, [navigate]);
+
+    const fetchFamilyGroups = async (token) => {
+        try {
+            const response = await axios.get(`${API_URL}/family/my-families`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setFamilyGroups(response.data.data);
+        } catch (error) {
+            console.error('Error fetching family groups:', error);
+        }
+    };
 
     const fetchExpenses = async (token) => {
         try {
@@ -49,7 +67,15 @@ export default function Expenses() {
         setLoading(true);
 
         try {
-            await axios.post(`${API_URL}/expense`, formData, {
+            const submitData = {
+                ...formData,
+                familySync: {
+                    enabled: formData.familySyncEnabled,
+                    familyId: formData.familySyncEnabled && familyGroups.length > 0 ? familyGroups[0]._id : null,
+                    visibility: 'family'
+                }
+            };
+            await axios.post(`${API_URL}/expense`, submitData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setFormData({
@@ -57,12 +83,16 @@ export default function Expenses() {
                 amount: '',
                 description: '',
                 date: new Date().toISOString().split('T')[0],
-                paymentMethod: 'cash'
+                paymentMethod: 'cash',
+                familyGroupId: '',
+                familySyncEnabled: false
             });
             setShowForm(false);
+            setFormError('');
             fetchExpenses(token);
         } catch (error) {
             console.error('Error adding expense:', error);
+            setFormError(error.response?.data?.message || 'Error adding expense. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -91,7 +121,7 @@ export default function Expenses() {
         return matchesCategory && matchesSearch;
     });
 
-    const categories = ['food', 'transport', 'utilities', 'entertainment', 'shopping', 'healthcare', 'education', 'insurance', 'rent', 'other'];
+    const categories = ['food', 'transport', 'utilities', 'entertainment', 'shopping', 'healthcare', 'education', 'insurance', 'rent', 'investe', 'investment', 'other'];
     const paymentMethods = ['cash', 'credit_card', 'debit_card', 'bank_transfer', 'upi'];
 
     return (
@@ -230,6 +260,12 @@ export default function Expenses() {
                         </div>
                         
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                            {formError && (
+                                <div className="p-3 bg-red-50 border border-red-100 text-red-600 rounded-lg text-sm font-medium flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+                                    <AlertTriangle size={16} />
+                                    {formError}
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Amount (₹)</label>
                                 <div className="relative">
@@ -297,6 +333,38 @@ export default function Expenses() {
                                     className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none placeholder:text-slate-300 resize-none"
                                 />
                             </div>
+
+                            {familyGroups.length > 0 && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Family Group (Optional)</label>
+                                    <select
+                                        name="familyGroupId"
+                                        value={formData.familyGroupId}
+                                        onChange={handleChange}
+                                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none"
+                                    >
+                                        <option value="">Personal (None)</option>
+                                        {familyGroups.map(group => (
+                                            <option key={group._id} value={group._id}>{group.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {!formData.familyGroupId && familyGroups.length > 0 && (
+                                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                    <input 
+                                        type="checkbox"
+                                        id="familySync"
+                                        checked={formData.familySyncEnabled}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, familySyncEnabled: e.target.checked }))}
+                                        className="w-5 h-5 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                                    />
+                                    <label htmlFor="familySync" className="text-sm font-medium text-slate-700 cursor-pointer">
+                                        Sync with Family Dashboard
+                                    </label>
+                                </div>
+                            )}
 
                             <div className="pt-2">
                                 <button

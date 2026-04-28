@@ -1,11 +1,46 @@
 import Expense from '../models/Expense.js';
+import FamilyGroup from '../models/FamilyGroup.js';
+import Income from '../models/Income.js';
+import mongoose from 'mongoose';
 
 export const addExpense = async (req, res) => {
     try {
-        const { category, amount, description, date, paymentMethod, tags, isRecurring, frequency } = req.body;
+        const { category, amount, description, date, paymentMethod, tags, isRecurring, frequency, familyGroupId, familySync } = req.body;
+
+        if (familyGroupId) {
+            const familyGroup = await FamilyGroup.findById(familyGroupId);
+            if (!familyGroup) {
+                return res.status(404).json({ success: false, message: 'Family group not found' });
+            }
+            const isApprovedMember = familyGroup.members.some(m => m.user.toString() === req.user.userId && (m.status === 'Approved' || familyGroup.admin.toString() === req.user.userId));
+            if (!isApprovedMember) {
+                return res.status(403).json({ success: false, message: 'Not an approved member of this family group' });
+            }
+        }
+
+        // Check user's current balance (Income - Expenses)
+        const userId = new mongoose.Types.ObjectId(req.user.userId);
+        const totalIncomeAgg = await Income.aggregate([
+            { $match: { userId } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+        const totalExpenseAgg = await Expense.aggregate([
+            { $match: { userId } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+        
+        const currentBalance = (totalIncomeAgg[0]?.total || 0) - (totalExpenseAgg[0]?.total || 0);
+        
+        if (Number(amount) > currentBalance) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `Insufficient balance! Your current balance is ₹${currentBalance.toLocaleString()}, but you're trying to spend ₹${Number(amount).toLocaleString()}.` 
+            });
+        }
 
         const expense = new Expense({
             userId: req.user.userId,
+            familyGroupId: familyGroupId || null,
             category,
             amount,
             description,
@@ -13,7 +48,8 @@ export const addExpense = async (req, res) => {
             paymentMethod,
             tags,
             isRecurring,
-            frequency
+            frequency,
+            familySync: familySync || { enabled: false }
         });
 
         await expense.save();
@@ -94,6 +130,29 @@ export const updateExpense = async (req, res) => {
                 success: false, 
                 message: 'Expense not found' 
             });
+        }
+
+        // If amount is being updated, check balance
+        if (req.body.amount && Number(req.body.amount) !== expense.amount) {
+            const userId = new mongoose.Types.ObjectId(req.user.userId);
+            const totalIncomeAgg = await Income.aggregate([
+                { $match: { userId } },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ]);
+            const totalExpenseAgg = await Expense.aggregate([
+                { $match: { userId } },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ]);
+            
+            // Adjust balance by removing the current expense amount from total
+            const currentBalance = (totalIncomeAgg[0]?.total || 0) - (totalExpenseAgg[0]?.total || 0) + expense.amount;
+            
+            if (Number(req.body.amount) > currentBalance) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Insufficient balance! Your available balance (excluding this expense) is ₹${currentBalance.toLocaleString()}, but you're trying to update this expense to ₹${Number(req.body.amount).toLocaleString()}.` 
+                });
+            }
         }
 
         expense = await Expense.findByIdAndUpdate(req.params.id, req.body, { 

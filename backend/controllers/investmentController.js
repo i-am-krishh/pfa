@@ -1,11 +1,24 @@
 import Investment from '../models/Investment.js';
+import FamilyGroup from '../models/FamilyGroup.js';
 
 export const addInvestment = async (req, res) => {
     try {
-        const { type, name, amount, currentValue, quantity, pricePerUnit, investmentDate, expectedReturnPercentage, riskLevel, broker, description } = req.body;
+        const { type, name, amount, currentValue, quantity, pricePerUnit, investmentDate, expectedReturnPercentage, riskLevel, broker, description, familyGroupId, familySync } = req.body;
+
+        if (familyGroupId) {
+            const familyGroup = await FamilyGroup.findById(familyGroupId);
+            if (!familyGroup) {
+                return res.status(404).json({ success: false, message: 'Family group not found' });
+            }
+            const isApprovedMember = familyGroup.members.some(m => m.user.toString() === req.user.userId && (m.status === 'Approved' || familyGroup.admin.toString() === req.user.userId));
+            if (!isApprovedMember) {
+                return res.status(403).json({ success: false, message: 'Not an approved member of this family group' });
+            }
+        }
 
         const investment = new Investment({
             userId: req.user.userId,
+            familyGroupId: familyGroupId || null,
             type,
             name,
             amount,
@@ -16,7 +29,8 @@ export const addInvestment = async (req, res) => {
             expectedReturnPercentage,
             riskLevel,
             broker,
-            description
+            description,
+            familySync: familySync || { enabled: false }
         });
 
         await investment.save();

@@ -11,6 +11,7 @@ export default function Loan() {
   const [viewingId, setViewingId] = useState(null)
   const [totalLoanAmount, setTotalLoanAmount] = useState(0)
   const [totalPaid, setTotalPaid] = useState(0)
+  const [familyGroups, setFamilyGroups] = useState([])
 
   const [formData, setFormData] = useState({
     type: 'personal_loan',
@@ -21,7 +22,9 @@ export default function Loan() {
     tenure: '',
     tenureUnit: 'months',
     startDate: new Date().toISOString().split('T')[0],
-    description: ''
+    description: '',
+    familyGroupId: '',
+    familySyncEnabled: false
   })
 
   const token = localStorage.getItem('token')
@@ -44,7 +47,19 @@ export default function Loan() {
 
   useEffect(() => {
     fetchLoans()
+    fetchFamilyGroups()
   }, [])
+
+  const fetchFamilyGroups = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/family/my-families`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setFamilyGroups(response.data.data)
+    } catch (error) {
+      console.error('Error fetching family groups:', error)
+    }
+  }
 
   const calculateEMI = (principal, rate, months) => {
     if (rate === 0) {
@@ -102,7 +117,13 @@ export default function Loan() {
         endDate: endDate.toISOString().split('T')[0],
         description: formData.description,
         amountPaid: principal - remaining, // Simple diff
-        nextPaymentDate: new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        nextPaymentDate: new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        familyGroupId: formData.familyGroupId || null,
+        familySync: {
+          enabled: formData.familySyncEnabled,
+          familyId: formData.familySyncEnabled && familyGroups.length > 0 ? familyGroups[0]._id : null,
+          visibility: 'family'
+        }
       }
 
       if (editingId) {
@@ -161,7 +182,9 @@ export default function Loan() {
       tenure: '',
       tenureUnit: 'months',
       startDate: new Date().toISOString().split('T')[0],
-      description: ''
+      description: '',
+      familyGroupId: '',
+      familySyncEnabled: false
     })
     setEditingId(null)
     setShowForm(false)
@@ -415,6 +438,40 @@ export default function Loan() {
                      placeholder="Additional details..."
                    ></textarea>
                 </div>
+
+                {familyGroups.length > 0 && (
+                  <div className="md:col-span-2 border-t border-slate-100 pt-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Family Group (Optional)</label>
+                      <select
+                        name="familyGroupId"
+                        value={formData.familyGroupId}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all"
+                      >
+                        <option value="">Personal (None)</option>
+                        {familyGroups.map(group => (
+                          <option key={group._id} value={group._id}>{group.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {!formData.familyGroupId && familyGroups.length > 0 && (
+                  <div className="md:col-span-2 flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <input 
+                      type="checkbox"
+                      id="familySync"
+                      checked={formData.familySyncEnabled}
+                      onChange={(e) => setFormData(prev => ({ ...prev, familySyncEnabled: e.target.checked }))}
+                      className="w-5 h-5 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                    />
+                    <label htmlFor="familySync" className="text-sm font-medium text-slate-700 cursor-pointer">
+                      Sync with Family Dashboard
+                    </label>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4 pt-4">

@@ -6,10 +6,14 @@ const expenseSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    familyGroupId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'FamilyGroup',
+        default: null
+    },
     category: {
         type: String,
         required: [true, 'Please provide expense category'],
-        enum: ['food', 'transport', 'utilities', 'entertainment', 'shopping', 'healthcare', 'education', 'insurance', 'rent', 'other'],
         trim: true
     },
     amount: {
@@ -40,6 +44,26 @@ const expenseSchema = new mongoose.Schema({
         type: String,
         enum: ['daily', 'weekly', 'monthly', 'yearly', null],
         default: null
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'approved'
+    },
+    approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    approvedAt: {
+        type: Date
+    },
+    rejectionReason: {
+        type: String
+    },
+    familySync: {
+        enabled: { type: Boolean, default: false },
+        familyId: { type: mongoose.Schema.Types.ObjectId, ref: 'FamilyGroup', default: null },
+        visibility: { type: String, enum: ['private', 'family'], default: 'private' }
     },
     createdAt: {
         type: Date,

@@ -12,6 +12,8 @@ import Investment from './pages/Investment'
 import Loan from './pages/Loan'
 import TaxSaving from './pages/TaxSaving'
 import StockMarket from './pages/StockMarket'
+import FamilyAccessPage from './pages/FamilyAccessPage'
+import FamilyGoalPlanner from './pages/FamilyGoalPlanner'
 
 // Layouts
 import PublicLayout from './layouts/PublicLayout'
@@ -58,6 +60,8 @@ export default function AppRoutes() {
         <Route path="/loans" element={<ProtectedRoute element={<Loan />} />} />
         <Route path="/tax-saving" element={<ProtectedRoute element={<TaxSaving />} />} />
         <Route path="/stocks" element={<ProtectedRoute element={<StockMarket />} />} />
+        <Route path="/family" element={<ProtectedRoute element={<FamilyAccessPage />} />} />
+        <Route path="/family/:familyId/goal-planner" element={<ProtectedRoute element={<FamilyGoalPlanner />} />} />
       </Route>
 
       {/* Fallback Route */}

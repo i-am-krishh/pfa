@@ -12,6 +12,11 @@ import insuranceRoutes from './routes/insuranceRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import taxSavingRoutes from './routes/taxSavingRoutes.js';
 import chatbotRoutes from './routes/chatbotRoutes.js';
+import familyRoutes from './routes/familyRoutes.js';
+import familyBudgetRoutes from './routes/familyBudgetRoutes.js';
+import familyTransactionRoutes from './routes/familyTransactionRoutes.js';
+import familyGoalRoutes from './routes/familyGoalRoutes.js';
+import familyGoalPlannerRoutes from './routes/familyGoalPlannerRoutes.js';
 
 dotenv.config();
 
@@ -21,7 +26,7 @@ const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGODB_ATLAS_URI || 
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL, /\.vercel\.app$/].filter(Boolean),
+    origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', process.env.FRONTEND_URL, /\.vercel\.app$/].filter(Boolean),
     credentials: true
 }));
 app.use(express.json());
@@ -39,7 +44,8 @@ const connectDB = async () => {
         await mongoose.connect(MONGODB_URI, {
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
-            dbName: 'PersonalFinance' // Explicitly set DB name
+            dbName: 'PersonalFinance', // Explicitly set DB name
+            family: 4 // Force IPv4
         });
         console.log('MongoDB connected successfully');
     } catch (error) {
@@ -67,6 +73,11 @@ app.use('/api/insurance', insuranceRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/tax-saving', taxSavingRoutes);
 app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/family', familyRoutes);
+app.use('/api/family/budgets', familyBudgetRoutes);
+app.use('/api/family/transactions', familyTransactionRoutes);
+app.use('/api/family/goals', familyGoalRoutes);
+app.use('/api/family/goal-planner', familyGoalPlannerRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
