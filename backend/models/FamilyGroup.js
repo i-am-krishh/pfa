@@ -127,6 +127,16 @@ const familyGroupSchema = new mongoose.Schema({
             ref: 'User'
         }
     }],
+    chatSettings: {
+        defaultDisappearTime: {
+            type: Number,
+            default: null // in milliseconds, null means messages don't disappear
+        },
+        updatedAt: {
+            type: Date,
+            default: Date.now
+        }
+    },
     createdAt: {
         type: Date,
         default: Date.now

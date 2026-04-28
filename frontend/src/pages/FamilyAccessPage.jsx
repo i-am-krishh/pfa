@@ -10,6 +10,7 @@ import FamilyTransactions from './FamilyTransactions';
 import FamilyGoals from './FamilyGoals';
 import FamilySharingSettings from './FamilySharingSettings';
 import FamilyGoalPlanner from './FamilyGoalPlanner';
+import FamilyChat from './FamilyChat';
 
 const FamilyAccessPage = () => {
     const [familyGroup, setFamilyGroup] = useState(null);
@@ -136,6 +137,12 @@ const FamilyAccessPage = () => {
                     >
                         AI Goal Planner
                     </button>
+                    <button 
+                        onClick={() => setActiveTab('chat')}
+                        className={`whitespace-nowrap px-4 py-2 rounded-lg font-semibold transition-colors ${activeTab === 'chat' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
+                    >
+                        💬 Chat
+                    </button>
                     
                     {familyGroup.myRole === 'Admin' && (
                         <button 
@@ -155,6 +162,7 @@ const FamilyAccessPage = () => {
                     {activeTab === 'management' && <FamilyManagement familyId={familyGroup._id} />}
                     {activeTab === 'settings' && <FamilySharingSettings familyId={familyGroup._id} />}
                     {activeTab === 'planner' && <FamilyGoalPlanner familyId={familyGroup._id} />}
+                    {activeTab === 'chat' && <FamilyChat familyId={familyGroup._id} />}
                 </div>
             </div>
         );

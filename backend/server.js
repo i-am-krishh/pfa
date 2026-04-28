@@ -17,6 +17,7 @@ import familyBudgetRoutes from './routes/familyBudgetRoutes.js';
 import familyTransactionRoutes from './routes/familyTransactionRoutes.js';
 import familyGoalRoutes from './routes/familyGoalRoutes.js';
 import familyGoalPlannerRoutes from './routes/familyGoalPlannerRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 
 dotenv.config();
 
@@ -78,6 +79,7 @@ app.use('/api/family/budgets', familyBudgetRoutes);
 app.use('/api/family/transactions', familyTransactionRoutes);
 app.use('/api/family/goals', familyGoalRoutes);
 app.use('/api/family/goal-planner', familyGoalPlannerRoutes);
+app.use('/api/family/chat', chatRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
