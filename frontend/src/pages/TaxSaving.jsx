@@ -204,19 +204,19 @@ export default function TaxSaving() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
-           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-               <div className="p-2 bg-amber-100/50 rounded-xl">
-                   <Calculator className="text-amber-600" size={32} />
+           <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+               <div className="p-2 bg-amber-100/50 dark:bg-amber-900/30 rounded-xl">
+                   <Calculator className="text-amber-600 dark:text-amber-500" size={32} />
                </div>
                Tax Optimizer
            </h1>
-           <p className="text-slate-500 mt-2 text-lg">Calculate liability & discover saving opportunities</p>
+           <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">Calculate liability & discover saving opportunities</p>
         </div>
         <div className="flex gap-3">
           {taxData && (
             <button
               onClick={downloadITRSummary}
-              className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 hover:text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50 px-4 py-2.5 rounded-lg transition-all shadow-sm font-medium"
+              className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:border-emerald-200 dark:hover:border-emerald-500/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-4 py-2.5 rounded-lg transition-all shadow-sm font-medium"
             >
               <Download size={18} />
               ITR Report
@@ -227,7 +227,7 @@ export default function TaxSaving() {
               setShowForm(!showForm)
               if (!showForm) populateFormData(taxData || {})
             }}
-            className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg transition-all shadow-lg shadow-slate-900/20 font-medium active:scale-95"
+            className="flex items-center gap-2 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg transition-all shadow-lg shadow-slate-900/20 dark:shadow-blue-900/20 font-medium active:scale-95"
           >
             {showForm ? 'Cancel Edit' : 'Update Income'}
           </button>
@@ -236,11 +236,11 @@ export default function TaxSaving() {
 
       {/* Form Section - Modern Card */}
       {showForm && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-top-4 duration-300">
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-             <h2 className="text-lg font-bold text-slate-800">Income & Investment Details</h2>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-top-4 duration-300">
+          <div className="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Income & Investment Details</h2>
              <button onClick={() => setShowForm(false)}>
-                 <X className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full p-1" size={24}/>
+                 <X className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full p-1" size={24}/>
              </button>
           </div>
           
@@ -279,10 +279,10 @@ export default function TaxSaving() {
             <div className="border-t border-slate-100 pt-6"></div>
 
             {/* Section 80C Investments */}
-            <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-6">
-              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <div className="p-1.5 bg-blue-100 rounded text-blue-600"><DollarSign size={18} /></div>
-                Section 80C Investments <span className="text-slate-400 font-normal text-sm ml-2">(Max Deduction: ₹1,50,000)</span>
+            <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800 p-6">
+              <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded text-blue-600 dark:text-blue-400"><DollarSign size={18} /></div>
+                Section 80C Investments <span className="text-slate-400 dark:text-slate-500 font-normal text-sm ml-2">(Max Deduction: ₹1,50,000)</span>
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  {[
@@ -323,10 +323,10 @@ export default function TaxSaving() {
             </div>
 
             {/* Section 80D - Health Insurance */}
-            <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-6">
-              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <div className="p-1.5 bg-rose-100 rounded text-rose-600"><AlertCircle size={18} /></div>
-                Section 80D - Health Insurance <span className="text-slate-400 font-normal text-sm ml-2">(Max: ₹1,00,000)</span>
+            <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800 p-6">
+              <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <div className="p-1.5 bg-rose-100 dark:bg-rose-900/30 rounded text-rose-600 dark:text-rose-400"><AlertCircle size={18} /></div>
+                Section 80D - Health Insurance <span className="text-slate-400 dark:text-slate-500 font-normal text-sm ml-2">(Max: ₹1,00,000)</span>
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
@@ -402,25 +402,25 @@ export default function TaxSaving() {
           
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white border border-blue-100 rounded-2xl p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Wallet size={64} className="text-blue-600"/></div>
-              <p className="text-slate-500 text-sm font-medium">Gross Annual Income</p>
-              <p className="text-2xl font-bold text-slate-900 mt-1">₹{taxData.annualIncome.toLocaleString('en-IN')}</p>
+            <div className="bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900/30 rounded-2xl p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Wallet size={64} className="text-blue-600 dark:text-blue-500"/></div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Gross Annual Income</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">₹{taxData.annualIncome.toLocaleString('en-IN')}</p>
             </div>
-            <div className="bg-white border border-purple-100 rounded-2xl p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><TrendingDown size={64} className="text-purple-600"/></div>
-              <p className="text-slate-500 text-sm font-medium">Total Deductions Claimed</p>
-              <p className="text-2xl font-bold text-slate-900 mt-1">₹{taxData.totalDeductions.toLocaleString('en-IN')}</p>
+            <div className="bg-white dark:bg-slate-900 border border-purple-100 dark:border-purple-900/30 rounded-2xl p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><TrendingDown size={64} className="text-purple-600 dark:text-purple-500"/></div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Total Deductions Claimed</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">₹{taxData.totalDeductions.toLocaleString('en-IN')}</p>
             </div>
-            <div className="bg-white border border-orange-100 rounded-2xl p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><FileText size={64} className="text-orange-600"/></div>
-              <p className="text-slate-500 text-sm font-medium">Taxable Income</p>
-              <p className="text-2xl font-bold text-slate-900 mt-1">₹{taxData.taxableIncome.toLocaleString('en-IN')}</p>
+            <div className="bg-white dark:bg-slate-900 border border-orange-100 dark:border-orange-900/30 rounded-2xl p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><FileText size={64} className="text-orange-600 dark:text-orange-500"/></div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Taxable Income</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">₹{taxData.taxableIncome.toLocaleString('en-IN')}</p>
             </div>
-            <div className="bg-white border border-red-100 rounded-2xl p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><AlertCircle size={64} className="text-red-600"/></div>
-              <p className="text-slate-500 text-sm font-medium">Net Tax Liability</p>
-              <p className="text-3xl font-extrabold text-red-600 mt-1">₹{taxData.estimatedTaxLiability.toLocaleString('en-IN')}</p>
+            <div className="bg-white dark:bg-slate-900 border border-red-100 dark:border-red-900/30 rounded-2xl p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><AlertCircle size={64} className="text-red-600 dark:text-red-500"/></div>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Net Tax Liability</p>
+              <p className="text-3xl font-extrabold text-red-600 dark:text-red-500 mt-1">₹{taxData.estimatedTaxLiability.toLocaleString('en-IN')}</p>
             </div>
           </div>
 
@@ -448,24 +448,24 @@ export default function TaxSaving() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Deduction Breakdown */}
                 <div className="space-y-4">
-                    <h3 className="text-xl font-bold text-slate-800">Deductions Breakdown</h3>
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Deductions Breakdown</h3>
                     
                     {/* 80C Card */}
                     <div 
-                        className={`bg-white border ${expandedSection === '80C' ? 'border-blue-500 ring-1 ring-blue-500/20' : 'border-slate-200'} rounded-2xl p-5 cursor-pointer transition-all hover:border-blue-400`}
+                        className={`bg-white dark:bg-slate-900 border ${expandedSection === '80C' ? 'border-blue-500 ring-1 ring-blue-500/20' : 'border-slate-200 dark:border-slate-800'} rounded-2xl p-5 cursor-pointer transition-all hover:border-blue-400 dark:hover:border-blue-500/50`}
                         onClick={() => setExpandedSection(expandedSection === '80C' ? null : '80C')}
                     >
                         <div className="flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><DollarSign size={20}/></div>
+                                <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg"><DollarSign size={20}/></div>
                                 <div>
-                                    <h4 className="font-semibold text-slate-800">Section 80C</h4>
-                                    <p className="text-xs text-slate-500">Investments & Expenses</p>
+                                    <h4 className="font-semibold text-slate-800 dark:text-slate-200">Section 80C</h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">Investments & Expenses</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
-                                <span className="font-bold text-slate-900">₹{taxData.totalSection80CDeduction.toLocaleString('en-IN')}</span>
-                                {expandedSection === '80C' ? <ChevronUp size={18} className="text-slate-400"/> : <ChevronDown size={18} className="text-slate-400"/>}
+                                <span className="font-bold text-slate-900 dark:text-white">₹{taxData.totalSection80CDeduction.toLocaleString('en-IN')}</span>
+                                {expandedSection === '80C' ? <ChevronUp size={18} className="text-slate-400 dark:text-slate-500"/> : <ChevronDown size={18} className="text-slate-400 dark:text-slate-500"/>}
                             </div>
                         </div>
                         {expandedSection === '80C' && (
@@ -480,20 +480,20 @@ export default function TaxSaving() {
 
                     {/* 80D Card */}
                     <div 
-                        className={`bg-white border ${expandedSection === '80D' ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-200'} rounded-2xl p-5 cursor-pointer transition-all hover:border-rose-400`}
+                        className={`bg-white dark:bg-slate-900 border ${expandedSection === '80D' ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-200 dark:border-slate-800'} rounded-2xl p-5 cursor-pointer transition-all hover:border-rose-400 dark:hover:border-rose-500/50`}
                         onClick={() => setExpandedSection(expandedSection === '80D' ? null : '80D')}
                     >
                         <div className="flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-rose-50 text-rose-600 rounded-lg"><AlertCircle size={20}/></div>
+                                <div className="p-2 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg"><AlertCircle size={20}/></div>
                                 <div>
-                                    <h4 className="font-semibold text-slate-800">Section 80D</h4>
-                                    <p className="text-xs text-slate-500">Health Insurance</p>
+                                    <h4 className="font-semibold text-slate-800 dark:text-slate-200">Section 80D</h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">Health Insurance</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
-                                <span className="font-bold text-slate-900">₹{taxData.totalSection80DDeduction.toLocaleString('en-IN')}</span>
-                                {expandedSection === '80D' ? <ChevronUp size={18} className="text-slate-400"/> : <ChevronDown size={18} className="text-slate-400"/>}
+                                <span className="font-bold text-slate-900 dark:text-white">₹{taxData.totalSection80DDeduction.toLocaleString('en-IN')}</span>
+                                {expandedSection === '80D' ? <ChevronUp size={18} className="text-slate-400 dark:text-slate-500"/> : <ChevronDown size={18} className="text-slate-400 dark:text-slate-500"/>}
                             </div>
                         </div>
                          {expandedSection === '80D' && (
@@ -507,28 +507,28 @@ export default function TaxSaving() {
 
                 {/* Recommendations */}
                 <div className="space-y-4">
-                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                     <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                          <Lightbulb className="text-yellow-500 fill-yellow-500" size={20} />
                          Smart Recommendations
                      </h3>
                      
                      {(!taxData.recommendations || taxData.recommendations.length === 0) ? (
-                         <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
+                         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center text-slate-500 dark:text-slate-400">
                              <CheckCircle2 size={32} className="mx-auto text-green-500 mb-2"/>
                              <p>You have optimized your tax savings!</p>
                          </div>
                      ) : (
                          <div className="space-y-3">
                              {taxData.recommendations.map((rec, idx) => (
-                                 <div key={idx} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow flex items-start gap-4">
+                                 <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow flex items-start gap-4">
                                      <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${rec.priority === 'high' ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
                                      <div className="flex-1">
-                                         <h4 className="font-bold text-slate-800 capitalize text-sm">{rec.type.replace('_', ' ')}</h4>
-                                         <p className="text-xs text-slate-500 mt-1 leading-relaxed">{rec.description}</p>
+                                         <h4 className="font-bold text-slate-800 dark:text-slate-100 capitalize text-sm">{rec.type.replace('_', ' ')}</h4>
+                                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">{rec.description}</p>
                                          <div className="mt-2 flex items-center gap-4 text-xs">
-                                             <span className="font-semibold text-slate-700">Invest: <span className="text-emerald-600">₹{rec.amount.toLocaleString()}</span></span>
-                                             <span className="text-slate-400">|</span>
-                                             <span className="font-semibold text-slate-700">Save Tax: <span className="text-emerald-600">₹{rec.benefit.toLocaleString()}</span></span>
+                                             <span className="font-semibold text-slate-700 dark:text-slate-300">Invest: <span className="text-emerald-600 dark:text-emerald-400">₹{rec.amount.toLocaleString()}</span></span>
+                                             <span className="text-slate-400 dark:text-slate-500">|</span>
+                                             <span className="font-semibold text-slate-700 dark:text-slate-300">Save Tax: <span className="text-emerald-600 dark:text-emerald-400">₹{rec.benefit.toLocaleString()}</span></span>
                                          </div>
                                      </div>
                                  </div>
@@ -542,18 +542,18 @@ export default function TaxSaving() {
 
       {/* Empty State */}
       {!taxData && !showForm && !loading && (
-        <div className="text-center py-20 bg-white border border-dashed border-slate-300 rounded-2xl">
-          <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-             <Calculator size={40} className="text-slate-400" />
+        <div className="text-center py-20 bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">
+          <div className="bg-slate-50 dark:bg-slate-800 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+             <Calculator size={40} className="text-slate-400 dark:text-slate-500" />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">No Tax Declaration Found</h3>
-          <p className="text-slate-500 max-w-md mx-auto mb-8">Enter your annual income and investment details to generate a tax report and get personalized saving advice.</p>
+          <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">No Tax Declaration Found</h3>
+          <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8">Enter your annual income and investment details to generate a tax report and get personalized saving advice.</p>
           <button
             onClick={() => {
                 setShowForm(true)
                 populateFormData({})
             }}
-            className="bg-slate-900 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all active:scale-95"
+            className="bg-slate-900 dark:bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-slate-900/10 dark:shadow-blue-900/20 hover:bg-slate-800 dark:hover:bg-blue-700 transition-all active:scale-95"
           >
             Start Tax Calculation
           </button>

@@ -18,7 +18,7 @@ export default function PublicLayout() {
   const showNavbar = location.pathname !== '/' && location.pathname !== '/landing'
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-slate-950 transition-colors duration-300">
       {/* Navbar only on auth pages */}
       {showNavbar && <Navbar />}
       

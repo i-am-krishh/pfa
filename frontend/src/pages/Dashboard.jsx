@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, PiggyBank, Wallet, RefreshCw, Activity, ArrowUpRight, ArrowDownRight, CreditCard, DollarSign } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -52,8 +53,8 @@ export default function Dashboard() {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="relative">
-                    <div className="w-16 h-16 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
-                    <div className="mt-4 text-slate-500 font-medium">Loading Overview...</div>
+                    <div className="w-16 h-16 border-4 border-slate-200 dark:border-slate-800 border-t-blue-600 rounded-full animate-spin"></div>
+                    <div className="mt-4 text-slate-500 dark:text-slate-400 font-medium">Loading Overview...</div>
                 </div>
             </div>
         );
@@ -108,16 +109,34 @@ export default function Dashboard() {
         { title: 'Total Liabilities', amount: summary?.totalLoanAmount, icon: TrendingDown, color: 'text-slate-600', bg: 'bg-slate-100' },
     ];
 
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        show: {
+            opacity: 1,
+            transition: { staggerChildren: 0.1 }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        show: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+    };
+
     return (
-        <div className="space-y-8 max-w-7xl mx-auto pb-10">
+        <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="space-y-8 max-w-7xl mx-auto pb-10"
+        >
             {/* Header / Welcome */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 p-1">
+            <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 p-1">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                         Dashboard
                     </h1>
-                    <p className="text-slate-500 mt-1">
-                        Welcome back, <span className="font-semibold text-slate-700">{user?.fullName}</span>. Here's your financial summary.
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">
+                        Welcome back, <span className="font-semibold text-slate-700 dark:text-slate-300">{user?.fullName}</span>. Here's your financial summary.
                     </p>
                 </div>
                 <button
@@ -125,45 +144,47 @@ export default function Dashboard() {
                          const token = localStorage.getItem('token');
                          fetchDashboardData(token);
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-200 rounded-lg shadow-sm transition-all active:scale-95 text-sm font-medium"
+                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-500/50 rounded-lg shadow-sm transition-all active:scale-95 text-sm font-medium"
                 >
                     <RefreshCw size={16} className={`${refreshing ? 'animate-spin' : ''}`} />
                     Refresh Data
                 </button>
-            </div>
+            </motion.div>
 
             {/* Primary Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {summaryData.map((item, index) => (
-                    <div key={index} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100/50 hover:shadow-md transition-shadow group">
-                        <div className="flex justify-between items-start">
-                            <div className={`p-3 rounded-xl ${item.bg} ${item.color} group-hover:scale-110 transition-transform duration-300`}>
+                    <motion.div variants={itemVariants} key={index} className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100/50 dark:border-slate-800 hover:shadow-md transition-shadow group relative overflow-hidden">
+                        {/* Decorative background glow */}
+                        <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full ${item.bg.replace('bg-', 'bg-').replace('-50', '-500')} opacity-5 dark:opacity-10 blur-2xl group-hover:opacity-20 transition-opacity`} />
+                        <div className="flex justify-between items-start relative z-10">
+                            <div className={`p-3 rounded-xl ${item.bg} dark:bg-slate-800 ${item.color} dark:text-${item.color.split('-')[1]}-400 group-hover:scale-110 transition-transform duration-300`}>
                                 <item.icon size={24} />
                             </div>
                             {item.trend && (
-                                <div className={`flex items-center text-xs font-semibold px-2 py-1 rounded-full ${item.trendUp ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                <div className={`flex items-center text-xs font-semibold px-2 py-1 rounded-full ${item.trendUp ? 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400'}`}>
                                     {item.trendUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                                     {item.trend}
                                 </div>
                             )}
                         </div>
-                        <div className="mt-4">
-                            <p className="text-slate-500 text-sm font-medium">{item.title}</p>
-                            <h3 className="text-2xl font-bold text-slate-900 mt-1">
+                        <div className="mt-4 relative z-10">
+                            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{item.title}</p>
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
                                 ₹{(item.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                             </h3>
                         </div>
-                    </div>
+                    </motion.div>
                 ))}
             </div>
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Income vs Source - Bar Chart */}
-                <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                <motion.div variants={itemVariants} className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-bold text-slate-800">Income Overview</h3>
-                        <div className="bg-slate-50 px-3 py-1 rounded-lg text-xs font-medium text-slate-500">This Month</div>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Income Overview</h3>
+                        <div className="bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400">This Month</div>
                     </div>
                     
                     <div className="h-[300px] w-full">
@@ -204,12 +225,12 @@ export default function Dashboard() {
                             </ResponsiveContainer>
                         )}
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Expenses - Pie Chart */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                    <h3 className="text-lg font-bold text-slate-800 mb-2">Expenses Breakdown</h3>
-                    <p className="text-sm text-slate-500 mb-6">Where your money is going</p>
+                <motion.div variants={itemVariants} className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">Expenses Breakdown</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Where your money is going</p>
                     
                     <div className="h-[250px] w-full relative">
                         {(!summary?.expenseByCategory || summary.expenseByCategory.length === 0) ? (
@@ -253,26 +274,26 @@ export default function Dashboard() {
                              </div>
                         )}
                     </div>
-                </div>
+                </motion.div>
             </div>
 
             {/* Secondary Stats/Overview */}
-            <div>
-                 <h2 className="text-lg font-bold text-slate-800 mb-4 px-1">Portfolio Snapshot</h2>
+            <motion.div variants={itemVariants}>
+                 <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 px-1">Portfolio Snapshot</h2>
                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {secondaryStats.map((item, index) => (
-                        <div key={index} className="bg-white rounded-xl p-4 border border-slate-100 flex items-center gap-4 hover:border-slate-200 transition-colors">
-                            <div className={`p-3 rounded-full ${item.bg} ${item.color}`}>
+                        <div key={index} className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800 flex items-center gap-4 hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
+                            <div className={`p-3 rounded-full ${item.bg} dark:bg-slate-800 ${item.color} dark:text-${item.color.split('-')[1]}-400`}>
                                 <item.icon size={20} />
                             </div>
                             <div>
-                                <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">{item.title}</p>
-                                <p className="text-slate-900 font-bold text-lg">₹{(item.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+                                <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">{item.title}</p>
+                                <p className="text-slate-900 dark:text-white font-bold text-lg">₹{(item.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
                             </div>
                         </div>
                     ))}
                  </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 }
