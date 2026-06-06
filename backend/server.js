@@ -90,6 +90,10 @@ app.get('/health', (req, res) => {
     });
 });
 
+app.get('/', (req, res) => {
+    res.send('API is running');
+});
+
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
@@ -105,10 +109,6 @@ app.use((err, req, res, next) => {
         success: false,
         message: err.message || 'Internal server error'
     });
-});
-
-app.get('/', (req, res) => {
-    res.send('API is running');
 });
 
 // Export app for Vercel
