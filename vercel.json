@@ -1,27 +1,8 @@
 {
     "version": 2,
-    "outputDirectory": "frontend/dist",
-    "functions": {
-        "api/index.js": {
-            "maxDuration": 30,
-            "memory": 1024
-        }
-    },
     "routes": [
         {
-            "src": "^/api/(.*)",
-            "dest": "/api/index.js"
-        },
-        {
-            "src": "^/health/?$",
-            "dest": "/api/index.js"
-        },
-        {
-            "src": "^/assets/(.*)",
-            "dest": "/assets/$1"
-        },
-        {
-            "src": "^/(.*)",
+            "src": "/(.*)",
             "dest": "/index.html"
         }
     ]
