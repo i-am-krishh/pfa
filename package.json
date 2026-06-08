@@ -4,8 +4,7 @@
   "description": "Complete Personal Finance Management Web Application - MERN Stack",
   "main": "index.js",
   "scripts": {
-    "build": "npm run build:frontend",
-    "build:frontend": "cd frontend && npm install && npm run build",
+    "build": "npm install --prefix backend && cd frontend && npm install && npm run build",
     "frontend": "cd frontend && npm run dev",
     "backend": "cd backend && npm run dev",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
