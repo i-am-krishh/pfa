@@ -312,33 +312,33 @@ const FamilyChat = ({ familyId }) => {
     }
 
     return (
-        <div className="flex flex-col bg-gray-50 rounded-lg overflow-hidden border border-gray-200" style={{ height: 'calc(100vh - 300px)' }}>
+        <div className="flex flex-col bg-gray-50 dark:bg-slate-900 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700" style={{ height: 'calc(100vh - 240px)', minHeight: '400px' }}>
             {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-4 py-4 flex justify-between items-center shadow-sm">
-                <h2 className="text-xl font-bold text-gray-800">Family Chat</h2>
+            <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-4 flex justify-between items-center shadow-sm flex-shrink-0">
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white">Family Chat</h2>
                 <button
                     onClick={() => setShowSettings(!showSettings)}
-                    className="p-2 hover:bg-gray-100 rounded-lg"
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg"
                     title="Chat Settings"
                 >
-                    <Settings size={20} className="text-gray-600" />
+                    <Settings size={20} className="text-gray-600 dark:text-slate-300" />
                 </button>
             </div>
 
             {/* Settings Modal */}
             {showSettings && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
-                        <h3 className="text-lg font-bold text-gray-800 mb-4">Chat Settings</h3>
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 border border-gray-100 dark:border-slate-700">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Chat Settings</h3>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
                                     Message Disappear Time
                                 </label>
                                 <select
                                     value={disappearTime || ''}
                                     onChange={(e) => setDisappearTime(e.target.value ? parseInt(e.target.value) : null)}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-gray-800 dark:text-white"
                                 >
                                     {DISAPPEAR_OPTIONS.map(option => (
                                         <option key={option.label} value={option.value || ''}>
@@ -347,20 +347,20 @@ const FamilyChat = ({ familyId }) => {
                                     ))}
                                 </select>
                             </div>
-                            <p className="text-xs text-gray-600">
+                            <p className="text-xs text-gray-500 dark:text-slate-400">
                                 Messages will automatically disappear after the selected time.
                             </p>
                         </div>
                         <div className="flex gap-3 mt-6">
                             <button
                                 onClick={() => setShowSettings(false)}
-                                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold"
+                                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 font-semibold transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleUpdateSettings}
-                                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold"
+                                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold transition-colors"
                             >
                                 Save
                             </button>
@@ -369,10 +369,10 @@ const FamilyChat = ({ familyId }) => {
                 </div>
             )}
 
-            {/* Messages Area */}
+            {/* Messages Area - flex-1 + min-h-0 allows it to shrink and scroll within flex parent */}
             <div
                 ref={messagesContainerRef}
-                className="flex-1 overflow-y-auto px-4 py-6 space-y-4"
+                className="flex-1 min-h-0 overflow-y-auto px-4 py-6 space-y-4 scroll-smooth"
             >
                 {error && (
                     <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>
@@ -447,16 +447,16 @@ const FamilyChat = ({ familyId }) => {
 
             {/* Media Preview */}
             {selectedMedia && (
-                <div className="px-4 py-3 bg-gray-100 border-t border-gray-300 flex items-center justify-between">
+                <div className="px-4 py-3 bg-gray-100 dark:bg-slate-700 border-t border-gray-300 dark:border-slate-600 flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center gap-3">
                         {mediaPreview ? (
                             <img src={mediaPreview} alt="Preview" className="h-12 w-12 object-cover rounded" />
                         ) : (
-                            <FileText size={24} className="text-gray-600" />
+                            <FileText size={24} className="text-gray-600 dark:text-slate-300" />
                         )}
                         <div>
-                            <p className="text-sm font-semibold text-gray-800">{selectedMedia.name}</p>
-                            <p className="text-xs text-gray-600">{getFileSize(selectedMedia.size)}</p>
+                            <p className="text-sm font-semibold text-gray-800 dark:text-white">{selectedMedia.name}</p>
+                            <p className="text-xs text-gray-600 dark:text-slate-400">{getFileSize(selectedMedia.size)}</p>
                         </div>
                     </div>
                     <button
@@ -464,7 +464,7 @@ const FamilyChat = ({ familyId }) => {
                             setSelectedMedia(null);
                             setMediaPreview(null);
                         }}
-                        className="text-gray-600 hover:text-gray-800"
+                        className="text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-white"
                     >
                         ✕
                     </button>
@@ -472,7 +472,7 @@ const FamilyChat = ({ familyId }) => {
             )}
 
             {/* Input Area */}
-            <div className="bg-white border-t border-gray-200 px-4 py-4">
+            <div className="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 px-4 py-4 flex-shrink-0">
                 <form onSubmit={handleSendMessage} className="flex gap-2">
                     <input
                         type="file"
@@ -485,11 +485,11 @@ const FamilyChat = ({ familyId }) => {
                     <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="p-2 hover:bg-gray-100 rounded-lg"
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg flex-shrink-0"
                         title="Attach file"
                         disabled={sending}
                     >
-                        <Paperclip size={20} className="text-gray-600" />
+                        <Paperclip size={20} className="text-gray-600 dark:text-slate-300" />
                     </button>
 
                     <input
@@ -497,14 +497,14 @@ const FamilyChat = ({ familyId }) => {
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         placeholder="Type a message..."
-                        className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="flex-1 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-400"
                         disabled={sending}
                     />
 
                     <button
                         type="submit"
                         disabled={sending || (!newMessage.trim() && !selectedMedia)}
-                        className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                        className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex-shrink-0"
                         title="Send"
                     >
                         <Send size={20} />
