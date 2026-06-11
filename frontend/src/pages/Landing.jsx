@@ -101,22 +101,22 @@ export default function Landing() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
                     <p className="text-xs text-slate-600 mb-1">Total Income</p>
-                    <p className="text-lg font-bold text-slate-900">$45,230</p>
+                    <p className="text-lg font-bold text-slate-900">₹45,230</p>
                   </div>
                   <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
                     <p className="text-xs text-slate-600 mb-1">Expenses</p>
-                    <p className="text-lg font-bold text-slate-900">$12,890</p>
+                    <p className="text-lg font-bold text-slate-900">₹12,890</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
                     <p className="text-xs text-slate-600 mb-1">Savings</p>
-                    <p className="text-lg font-bold text-slate-900">$28,450</p>
+                    <p className="text-lg font-bold text-slate-900">₹28,450</p>
                   </div>
                   <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
                     <p className="text-xs text-slate-600 mb-1">Investments</p>
-                    <p className="text-lg font-bold text-slate-900">$15,680</p>
+                    <p className="text-lg font-bold text-slate-900">₹15,680</p>
                   </div>
                 </div>
               </div>

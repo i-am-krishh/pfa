@@ -69,36 +69,28 @@ export default function Dashboard() {
             amount: summary?.totalIncome, 
             icon: TrendingUp, 
             color: 'text-emerald-600', 
-            bg: 'bg-emerald-50',
-            trend: '+12%', // Mock data for visual
-            trendUp: true 
+            bg: 'bg-emerald-50'
         },
         { 
             title: 'Total Expenses', 
             amount: summary?.totalExpense, 
             icon: TrendingDown, 
             color: 'text-rose-600', 
-            bg: 'bg-rose-50',
-            trend: '+5%', 
-            trendUp: true // Expense going up is usually bad visually, but logically correct
+            bg: 'bg-rose-50'
         },
         { 
             title: 'Net Savings', 
             amount: summary?.totalSavings, 
             icon: PiggyBank, 
             color: 'text-blue-600', 
-            bg: 'bg-blue-50',
-            trend: '+8%', 
-            trendUp: true 
+            bg: 'bg-blue-50'
         },
         { 
             title: 'Current Balance', 
             amount: summary?.netBalance, 
             icon: Wallet, 
             color: 'text-indigo-600', 
-            bg: 'bg-indigo-50',
-            trend: '+2%', 
-            trendUp: true 
+            bg: 'bg-indigo-50'
         },
     ];
 

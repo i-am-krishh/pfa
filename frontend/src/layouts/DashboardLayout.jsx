@@ -1,10 +1,11 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Menu, X, Moon, Sun } from 'lucide-react'
+import { Menu, X, Bell, Check, CreditCard } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import Chatbot from '../components/Chatbot'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useTheme } from '../context/ThemeContext'
+import axios from 'axios'
+
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 /**
  * DashboardLayout - Modern layout with collapsible sidebar
@@ -26,6 +27,78 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [user, setUser] = useState(null)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [notifications, setNotifications] = useState([])
+
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+      const response = await axios.get(`${API_URL}/notification`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (response.data.success) {
+        setNotifications(response.data.notifications || [])
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+    }
+  }
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      const token = localStorage.getItem('token')
+      await axios.put(`${API_URL}/notification/${id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      fetchNotifications()
+    } catch (error) {
+      console.error('Error marking read:', error)
+    }
+  }
+
+  const handlePayEmi = async (id) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.post(`${API_URL}/notification/${id}/pay`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (response.data.success) {
+        alert('EMI payment recorded successfully! Expense added.')
+        fetchNotifications()
+        window.dispatchEvent(new Event('emiPaid'))
+      }
+    } catch (error) {
+      console.error('Error paying EMI:', error)
+      alert(error.response?.data?.message || 'Error recording payment')
+    }
+  }
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const response = await axios.get(`${API_URL}/auth/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        const userData = response.data.user;
+        const userStorageObj = {
+          id: userData._id,
+          fullName: userData.fullName,
+          email: userData.email,
+          phoneNumber: userData.phoneNumber,
+          currency: userData.currency,
+          twoFactorEnabled: userData.twoFactorEnabled,
+          profileImage: userData.profileImage
+        };
+        localStorage.setItem('user', JSON.stringify(userStorageObj));
+        setUser(userStorageObj);
+      }
+    } catch (err) {
+      console.error('Error syncing user profile in layout:', err);
+    }
+  };
 
   // Check authentication on mount
   useEffect(() => {
@@ -39,7 +112,25 @@ export default function DashboardLayout() {
 
     setUser(userData ? JSON.parse(userData) : null)
     setIsLoading(false)
+
+    // Initial fetch
+    fetchNotifications()
+    fetchUserProfile()
+
+    // Poll every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000)
+    return () => clearInterval(interval)
   }, [navigate])
+
+  // Listen for user profile updates
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      const userData = localStorage.getItem('user')
+      setUser(userData ? JSON.parse(userData) : null)
+    }
+    window.addEventListener('userUpdated', handleUserUpdate)
+    return () => window.removeEventListener('userUpdated', handleUserUpdate)
+  }, [])
 
   // Close sidebar on mobile when route changes
   useEffect(() => {
@@ -63,6 +154,7 @@ export default function DashboardLayout() {
     { label: 'Investments', path: '/investments' },
     { label: 'Loans', path: '/loans' },
     { label: 'Tax Saving', path: '/tax-saving' },
+    { label: 'Import Statement', path: '/import-statement' },
   ]
 
 
@@ -110,11 +202,88 @@ export default function DashboardLayout() {
             </div>
 
             <div className="flex items-center gap-4">
-              <button onClick={toggleTheme} className="p-2 rounded-lg text-slate-600 hover:text-blue-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-blue-400 dark:hover:bg-slate-800 transition-colors">
-                {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-              </button>
-              <div className="text-slate-600 dark:text-slate-400 text-sm hidden sm:block">
-                Welcome back, <span className="font-semibold dark:text-slate-200">{user?.fullName?.split(' ')[0]}</span>
+              {/* Notification Bell Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors focus:outline-none"
+                  title="Notifications"
+                >
+                  <Bell size={22} />
+                  {notifications.filter(n => !n.isRead).length > 0 && (
+                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                      {notifications.filter(n => !n.isRead).length}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-3 duration-200">
+                    <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                      <h3 className="font-bold text-slate-800">Notifications</h3>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
+                      {notifications.length === 0 ? (
+                        <div className="p-8 text-center text-slate-400">
+                          <Bell className="mx-auto mb-2 text-slate-300" size={32} />
+                          <p className="text-sm">No notifications</p>
+                        </div>
+                      ) : (
+                        notifications.map(notif => (
+                          <div key={notif._id} className={`p-4 hover:bg-slate-50 transition-colors ${!notif.isRead ? 'bg-blue-50/30' : ''}`}>
+                            <div className="flex gap-3">
+                              <div className="mt-0.5 p-1.5 bg-red-100/50 rounded-lg text-red-600 self-start">
+                                <CreditCard size={16} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h4 className={`text-sm font-semibold text-slate-800 truncate ${!notif.isRead ? 'font-bold' : ''}`}>
+                                    {notif.title}
+                                  </h4>
+                                  <span className="text-[10px] text-slate-400 whitespace-nowrap mt-0.5">
+                                    {new Date(notif.createdAt).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600 mt-1 break-words">{notif.message}</p>
+                                
+                                {notif.type === 'loan_emi' && (
+                                  <div className="mt-3 flex gap-2">
+                                    {notif.actionStatus === 'pending' ? (
+                                      <>
+                                        <button 
+                                          onClick={() => handlePayEmi(notif._id)}
+                                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                                        >
+                                          Mark Paid
+                                        </button>
+                                        {!notif.isRead && (
+                                          <button 
+                                            onClick={() => handleMarkAsRead(notif._id)}
+                                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+                                          >
+                                            Dismiss
+                                          </button>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1 rounded-lg border border-green-100">
+                                        <Check size={12} /> Paid
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-slate-600 text-sm hidden sm:block">
+                Welcome back, <span className="font-semibold">{user?.fullName?.split(' ')[0]}</span>
               </div>
             </div>
           </div>
@@ -136,9 +305,9 @@ export default function DashboardLayout() {
         </div>
 
         {/* Footer */}
-        <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-8 px-4 md:px-8 mt-12 transition-colors duration-300">
-          <div className="max-w-full flex flex-col md:flex-row justify-between items-center text-slate-600 dark:text-slate-400 text-sm gap-4">
-            <p>&copy; 2025 FinancePro. All rights reserved.</p>
+        <footer className="border-t border-slate-200 bg-white py-8 px-4 md:px-8 mt-12">
+          <div className="max-w-full flex flex-col md:flex-row justify-between items-center text-slate-600 text-sm gap-4">
+            <p>&copy; 2026 FinancePro. All rights reserved.</p>
             <div className="flex gap-6 mt-4 md:mt-0">
               <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Privacy</a>
               <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Terms</a>

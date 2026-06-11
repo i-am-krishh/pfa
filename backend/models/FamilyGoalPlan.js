@@ -41,6 +41,19 @@ const familyGoalPlanSchema = new mongoose.Schema({
         enum: ['low', 'medium', 'high', 'critical'],
         default: 'medium'
     },
+    riskProfile: {
+        type: String,
+        enum: ['low', 'medium', 'high'],
+        default: 'medium'
+    },
+    inflationRate: {
+        type: Number,
+        default: 0.06
+    },
+    futureTargetAmount: Number,
+    projectedFutureValue: Number,
+    achievementProbability: Number,
+    suggestedStrategy: String,
     monthlyRequiredSaving: Number,
     monthlyCurrentSurplus: Number,
     monthlyShortfall: Number,
@@ -56,9 +69,11 @@ const familyGoalPlanSchema = new mongoose.Schema({
         summary: String,
         isAchievable: String,
         monthlyPlan: String,
-        expenseReduction: String,
-        riskWarnings: String,
-        investmentGuidance: String,
+        expenseReduction: [String],
+        riskWarnings: [String],
+        recommendations: [String],
+        actionPlan: [String],
+        investmentGuidance: mongoose.Schema.Types.Mixed,
         alternativeTimeline: String,
         fullResponse: String // Store the raw AI response for reference
     },

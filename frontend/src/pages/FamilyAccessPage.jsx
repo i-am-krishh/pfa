@@ -11,6 +11,8 @@ import FamilyGoals from './FamilyGoals';
 import FamilySharingSettings from './FamilySharingSettings';
 import FamilyGoalPlanner from './FamilyGoalPlanner';
 import FamilyChat from './FamilyChat';
+import FamilyPortfolio from './FamilyPortfolio';
+import WelfareRecommender from './WelfareRecommender';
 
 const FamilyAccessPage = () => {
     const [familyGroup, setFamilyGroup] = useState(null);
@@ -132,10 +134,22 @@ const FamilyAccessPage = () => {
                         Sharing Settings
                     </button>
                     <button 
+                        onClick={() => setActiveTab('investments')}
+                        className={`whitespace-nowrap px-4 py-2 rounded-lg font-semibold transition-colors ${activeTab === 'investments' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
+                    >
+                        Investments
+                    </button>
+                    <button 
                         onClick={() => setActiveTab('planner')}
                         className={`whitespace-nowrap px-4 py-2 rounded-lg font-semibold transition-colors ${activeTab === 'planner' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
                     >
                         AI Goal Planner
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('welfare')}
+                        className={`whitespace-nowrap px-4 py-2 rounded-lg font-semibold transition-colors ${activeTab === 'welfare' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
+                    >
+                        Welfare Schemes
                     </button>
                     <button 
                         onClick={() => setActiveTab('chat')}
@@ -161,7 +175,9 @@ const FamilyAccessPage = () => {
                     {activeTab === 'goals' && <FamilyGoals familyId={familyGroup._id} />}
                     {activeTab === 'management' && <FamilyManagement familyId={familyGroup._id} />}
                     {activeTab === 'settings' && <FamilySharingSettings familyId={familyGroup._id} />}
+                    {activeTab === 'investments' && <FamilyPortfolio familyId={familyGroup._id} />}
                     {activeTab === 'planner' && <FamilyGoalPlanner familyId={familyGroup._id} />}
+                    {activeTab === 'welfare' && <WelfareRecommender familyId={familyGroup._id} />}
                     {activeTab === 'chat' && <FamilyChat familyId={familyGroup._id} />}
                 </div>
             </div>

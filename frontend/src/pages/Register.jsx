@@ -43,9 +43,7 @@ export default function Register() {
                 password: formData.password
             });
 
-            localStorage.setItem('token', response.data.token);
-            localStorage.setItem('user', JSON.stringify(response.data.user));
-            navigate('/dashboard');
+            navigate(`/verify-otp?email=${encodeURIComponent(formData.email)}&type=register`);
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed');
         } finally {

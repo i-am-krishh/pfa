@@ -21,6 +21,10 @@ const investmentSchema = new mongoose.Schema({
         required: [true, 'Please provide investment name'],
         trim: true
     },
+    symbol: {
+        type: String,
+        trim: true
+    },
     amount: {
         type: Number,
         required: [true, 'Please provide amount'],
@@ -36,6 +40,10 @@ const investmentSchema = new mongoose.Schema({
         default: 1
     },
     pricePerUnit: {
+        type: Number,
+        default: 0
+    },
+    fetchedStockPrice: {
         type: Number,
         default: 0
     },
@@ -75,5 +83,10 @@ const investmentSchema = new mongoose.Schema({
         default: Date.now
     }
 });
+
+// Performance optimization indexes for fast personal/family querying
+investmentSchema.index({ userId: 1 });
+investmentSchema.index({ familyGroupId: 1 });
+investmentSchema.index({ 'familySync.familyId': 1 });
 
 export default mongoose.model('Investment', investmentSchema);

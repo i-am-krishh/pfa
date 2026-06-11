@@ -122,7 +122,7 @@ const FamilyDashboard = ({ familyId }) => {
                                 <BarChart data={memberChartData}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} tickFormatter={(v) => `$${v}`} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} tickFormatter={(v) => `₹${v}`} />
                                     <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                                     <Legend iconType="circle" />
                                     <Bar dataKey="Income" fill="#34d399" radius={[4, 4, 0, 0]} maxBarSize={50} />
@@ -162,7 +162,7 @@ const FamilyDashboard = ({ familyId }) => {
                                         <div key={budget._id}>
                                             <div className="flex justify-between text-sm mb-1">
                                                 <span className="font-semibold text-slate-700">{budget.category}</span>
-                                                <span className="text-slate-500">${budget.usedAmount} / ${budget.limit}</span>
+                                                <span className="text-slate-500">₹{budget.usedAmount} / ₹{budget.limit}</span>
                                             </div>
                                             <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                                                 <div 
@@ -201,7 +201,7 @@ const FamilyDashboard = ({ familyId }) => {
                                             <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden mb-2">
                                                 <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.min(percent, 100)}%` }} />
                                             </div>
-                                            <p className="text-xs text-slate-500 text-right">${goal.currentAmount} / ${goal.targetAmount}</p>
+                                            <p className="text-xs text-slate-500 text-right">₹{goal.currentAmount} / ₹{goal.targetAmount}</p>
                                         </div>
                                     )
                                 })}
@@ -233,7 +233,7 @@ const FamilyDashboard = ({ familyId }) => {
                                             </div>
                                         </div>
                                         <div className={`font-bold text-sm ${t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                            {t.type === 'income' ? '+' : '-'}${t.amount}
+                                            {t.type === 'income' ? '+' : '-'}₹{t.amount}
                                         </div>
                                     </div>
                                 ))}

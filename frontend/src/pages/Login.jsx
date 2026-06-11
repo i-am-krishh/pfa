@@ -29,11 +29,22 @@ export default function Login() {
 
         try {
             const response = await axios.post(`${API_URL}/auth/login`, formData);
+            
+            if (response.data.require2FA) {
+                navigate(`/verify-otp?email=${encodeURIComponent(response.data.email)}&type=2fa`);
+                return;
+            }
+
             localStorage.setItem('token', response.data.token);
             localStorage.setItem('user', JSON.stringify(response.data.user));
             navigate('/dashboard');
         } catch (err) {
-            setError(err.response?.data?.message || 'Login failed');
+            const data = err.response?.data;
+            if (data?.unverified) {
+                navigate(`/verify-otp?email=${encodeURIComponent(data.email)}&type=register`);
+                return;
+            }
+            setError(data?.message || 'Login failed');
         } finally {
             setLoading(false);
         }
@@ -108,7 +119,12 @@ export default function Login() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-semibold text-slate-900 mb-2">Password</label>
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="block text-sm font-semibold text-slate-900">Password</label>
+                                <Link to="/forgot-password" className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition">
+                                    Forgot Password?
+                                </Link>
+                            </div>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
                                 <input

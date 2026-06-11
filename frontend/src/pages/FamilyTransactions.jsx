@@ -133,7 +133,7 @@ const FamilyTransactions = ({ familyId }) => {
                             <label className="block text-sm font-semibold text-slate-700 mb-1">Amount</label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <span className="text-slate-500 font-semibold">$</span>
+                                    <span className="text-slate-500 font-semibold">₹</span>
                                 </div>
                                 <input 
                                     type="number" required min="1" step="0.01"
@@ -245,7 +245,7 @@ const FamilyTransactions = ({ familyId }) => {
                                             </span>
                                         </td>
                                         <td className={`p-4 text-right font-bold whitespace-nowrap ${t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                            {t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}
+                                            {t.type === 'income' ? '+' : '-'}₹{t.amount.toFixed(2)}
                                         </td>
                                         <td className="p-4">
                                             <div className="flex justify-center gap-2">

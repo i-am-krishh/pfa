@@ -1,8 +1,10 @@
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
+import axios from 'axios'
 import { 
   Menu, X, LayoutDashboard, TrendingUp, ShoppingCart, 
-  PiggyBank, LogOut, ChevronDown, TrendingUpIcon, 
-  CreditCard, Calculator, Plus, Wallet, Users, Activity
+  PiggyBank, LogOut, ChevronDown, 
+  CreditCard, Calculator, Plus, Wallet, Users, Activity, Star, Upload,
+  ShieldAlert, ShieldCheck
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -23,6 +25,35 @@ export default function Sidebar({
   
   // State for dropdowns - using an object to track multiple potential dropdowns
   const [expandedMenus, setExpandedMenus] = useState({})
+
+  // 2FA state
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(user?.twoFactorEnabled || false)
+
+  useEffect(() => {
+    if (user) {
+      setTwoFactorEnabled(user.twoFactorEnabled || false)
+    }
+  }, [user])
+
+  const handleToggle2FA = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/auth/2fa/toggle`,
+        { enabled: !twoFactorEnabled },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        setTwoFactorEnabled(response.data.twoFactorEnabled)
+        const updatedUser = { ...user, twoFactorEnabled: response.data.twoFactorEnabled }
+        localStorage.setItem('user', JSON.stringify(updatedUser))
+        window.dispatchEvent(new Event('userUpdated'))
+      }
+    } catch (err) {
+      console.error('Error toggling 2FA:', err)
+      alert(err.response?.data?.message || 'Failed to toggle 2FA')
+    }
+  }
 
   // Navigation Data Structure
   const menuGroups = [
@@ -47,8 +78,10 @@ export default function Sidebar({
             { label: 'Income', path: '/income', icon: TrendingUp },
             { label: 'Expenses', path: '/expenses', icon: ShoppingCart },
             { label: 'Savings', path: '/savings', icon: PiggyBank },
-            { label: 'Investments', path: '/investments', icon: TrendingUpIcon },
+            { label: 'Investments', path: '/investments', icon: TrendingUp },
+            { label: 'Watchlist', path: '/watchlist', icon: Star },
             { label: 'Loans', path: '/loans', icon: CreditCard },
+            { label: 'Import Statement', path: '/import-statement', icon: Upload },
           ]
         }
       ]
@@ -56,7 +89,7 @@ export default function Sidebar({
     {
       label: 'MARKET',
       items: [
-        { label: 'Stock Market', path: '/stocks', icon: TrendingUp }
+        { label: 'Market Intelligence', path: '/stocks', icon: TrendingUp }
       ]
     },
     {
@@ -318,28 +351,58 @@ export default function Sidebar({
 
       {/* Footer / User Profile */}
       <div className="bg-slate-900/80 border-t border-slate-800/50 p-4">
-        {/* Helper/Progress Widget */}
+
+
+        {/* Two-Factor Authentication Toggle */}
         {!sidebarCollapsed && (
-          <div className="mb-6 px-1">
-             <div className="flex justify-between items-end mb-2">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Monthly Budget</span>
-                <span className="text-xs font-bold text-blue-400">85%</span>
-             </div>
-             <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 w-3/4 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.4)]" />
-             </div>
+          <div className="mb-4 px-3 py-2 bg-slate-950/40 rounded-xl border border-slate-800/60 flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-slate-300 flex items-center gap-1">
+                {twoFactorEnabled ? (
+                  <ShieldCheck size={12} className="text-emerald-400" />
+                ) : (
+                  <ShieldAlert size={12} className="text-amber-400" />
+                )}
+                2FA Login
+              </span>
+              <span className="text-[10px] text-slate-500">Require OTP on sign in</span>
+            </div>
+            <button
+              onClick={handleToggle2FA}
+              className={`w-10 h-6 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-300 focus:outline-none ${
+                twoFactorEnabled ? 'bg-emerald-600' : 'bg-slate-700'
+              }`}
+            >
+              <div
+                className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-300 ${
+                  twoFactorEnabled ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
         )}
 
         <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'flex-col justify-center gap-4' : ''}`}>
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 ring-2 ring-slate-800 cursor-pointer hover:ring-slate-600 transition-all">
-             <span className="text-white font-bold text-xs">{user?.fullName?.charAt(0) || 'U'}</span>
-          </div>
+          <Link 
+            to="/profile"
+            className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 ring-2 ring-slate-800 cursor-pointer hover:ring-slate-600 transition-all hover:scale-105"
+            title="View Profile"
+          >
+             {user?.profileImage ? (
+                <img src={user.profileImage} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+             ) : (
+                <span className="text-white font-bold text-xs">{user?.fullName?.charAt(0) || 'U'}</span>
+             )}
+          </Link>
           
-          <div className={`flex-1 overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'w-0 hidden' : 'w-auto'}`}>
+          <Link 
+            to="/profile"
+            className={`flex-1 overflow-hidden transition-all duration-300 cursor-pointer hover:opacity-80 ${sidebarCollapsed ? 'w-0 hidden' : 'w-auto'}`}
+            title="View Profile"
+          >
             <p className="text-sm font-bold text-white truncate">{user?.fullName}</p>
             <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-          </div>
+          </Link>
 
           <button
             onClick={onLogout}

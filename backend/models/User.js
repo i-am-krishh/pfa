@@ -58,6 +58,66 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    dateOfBirth: {
+        type: Date,
+        default: null
+    },
+    occupation: {
+        type: String,
+        enum: ['Student', 'Salaried Employee', 'Self Employed', 'Business Owner', 'Freelancer', 'Retired', ''],
+        default: ''
+    },
+    monthlyIncomeRange: {
+        type: String,
+        default: ''
+    },
+    taxRegime: {
+        type: String,
+        enum: ['Old Regime', 'New Regime', ''],
+        default: ''
+    },
+    familyRole: {
+        type: String,
+        enum: ['Family Head', 'Earning Member', 'Dependent', ''],
+        default: ''
+    },
+    riskAppetite: {
+        type: String,
+        enum: ['Low Risk', 'Medium Risk', 'High Risk', ''],
+        default: ''
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    otp: {
+        type: String,
+        default: null
+    },
+    otpExpires: {
+        type: Date,
+        default: null
+    },
+    otpAttempts: {
+        type: Number,
+        default: 0
+    },
+    resetOtp: {
+        type: String,
+        default: null
+    },
+    resetOtpExpires: {
+        type: Date,
+        default: null
+    },
+    resetOtpAttempts: {
+        type: Number,
+        default: 0
+    },
+    twoFactorEnabled: {
+        type: Boolean,
+        default: false
+    },
     createdAt: {
         type: Date,
         default: Date.now

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Calculator, Download, TrendingDown, AlertCircle, CheckCircle2, Lightbulb, DollarSign, ChevronDown, ChevronUp, FileText, X, Wallet } from 'lucide-react'
+import { Calculator, Download, TrendingDown, AlertCircle, CheckCircle2, Lightbulb, IndianRupee, ChevronDown, ChevronUp, FileText, X, Wallet } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -279,10 +279,10 @@ export default function TaxSaving() {
             <div className="border-t border-slate-100 pt-6"></div>
 
             {/* Section 80C Investments */}
-            <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800 p-6">
-              <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-                <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded text-blue-600 dark:text-blue-400"><DollarSign size={18} /></div>
-                Section 80C Investments <span className="text-slate-400 dark:text-slate-500 font-normal text-sm ml-2">(Max Deduction: ₹1,50,000)</span>
+            <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-6">
+              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <div className="p-1.5 bg-blue-100 rounded text-blue-600"><IndianRupee size={18} /></div>
+                Section 80C Investments <span className="text-slate-400 font-normal text-sm ml-2">(Max Deduction: ₹1,50,000)</span>
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  {[
@@ -457,7 +457,7 @@ export default function TaxSaving() {
                     >
                         <div className="flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg"><DollarSign size={20}/></div>
+                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><IndianRupee size={20}/></div>
                                 <div>
                                     <h4 className="font-semibold text-slate-800 dark:text-slate-200">Section 80C</h4>
                                     <p className="text-xs text-slate-500 dark:text-slate-400">Investments & Expenses</p>
