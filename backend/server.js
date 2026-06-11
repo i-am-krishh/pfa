@@ -31,7 +31,6 @@ import { debugStockQuote } from './controllers/stockController.js';
 import { debugStatementUpload } from './controllers/statementController.js';
 import multer from 'multer';
 import { createServer } from 'http';
-import { initSocketService } from './services/socketService.js';
 
 dotenv.config(); // Reload watch trigger to update Twelve Data key
 
@@ -83,8 +82,13 @@ const connectDB = async () => {
     }
 };
 
-// Connect immediately
-connectDB();
+// Lazy DB connection - runs on each request but connectDB() guards against double-connects
+// This is Vercel-safe: avoids top-level await blocking the module load
+app.use(async (req, res, next) => {
+    await connectDB();
+    next();
+});
+
 
 // API Routes need to await DB connection? 
 // Mongoose buffers automatically, but if it times out, it means connection failed.
@@ -155,9 +159,12 @@ app.use((err, req, res, next) => {
 // Export app for Vercel
 export default app;
 
-// Only listen if run directly
+// Only listen if run directly (not on Vercel serverless)
 import { fileURLToPath } from 'url';
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    // Only import socket service locally - it's incompatible with Vercel serverless
+    const { initSocketService } = await import('./services/socketService.js');
+    connectDB(); // Connect eagerly when running locally
     const httpServer = createServer(app);
     initSocketService(httpServer);
     httpServer.listen(PORT, () => {

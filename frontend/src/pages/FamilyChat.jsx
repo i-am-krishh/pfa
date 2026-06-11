@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import {
     Send, Paperclip, FileText, Image as ImageIcon, Video, Trash2, Smile,
-    Settings, Download, Clock, Search, Mic, Square, X
+    Settings, Download, Clock, Search, Mic, Square, X, Eye
 } from 'lucide-react';
+
 
 const FamilyChat = ({ familyId }) => {
     const [messages, setMessages] = useState([]);
