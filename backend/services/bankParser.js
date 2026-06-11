@@ -2,9 +2,11 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const pdf = require('pdf-parse');
 import * as xlsx from 'xlsx';
-import Tesseract from 'tesseract.js';
+// NOTE: Tesseract is imported lazily inside parseWithTesseractLocal()
+// to prevent crashing Vercel serverless functions (native binary incompatibility)
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
+
 
 dotenv.config();
 
@@ -207,13 +209,16 @@ Return ONLY the raw JSON object. Do not include markdown formatting or any other
     return parsed;
 };
 
-// 3. Local Tesseract OCR extraction
+// 3. Local Tesseract OCR extraction (lazy import to avoid Vercel crash)
 const parseWithTesseractLocal = async (fileBuffer) => {
     console.log("[Tesseract Local] Starting OCR extraction on image buffer...");
+    // Dynamic import so Vercel doesn't crash at module load time
+    const { default: Tesseract } = await import('tesseract.js');
     const { data: { text } } = await Tesseract.recognize(fileBuffer, 'eng');
     console.log("[Tesseract Local] Raw OCR text extracted, length:", text.length);
     return text;
 };
+
 
 // 4. Structure raw OCR text with Gemini
 const structureOcrTextWithGemini = async (ocrText) => {
