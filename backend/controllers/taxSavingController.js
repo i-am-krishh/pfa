@@ -321,3 +321,13 @@ export const generateITRSummary = async (req, res) => {
         });
     }
 };
+
+export const runTaxAdvisorGemini = async (data) => {
+    return {
+        success: false,
+        prompt: null,
+        rawResponse: null,
+        transformedResponse: null,
+        error: "Tax Recommendation Engine is rule-based and does not use Gemini AI."
+    };
+};

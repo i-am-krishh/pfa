@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import crypto from 'crypto';
 import Income from '../models/Income.js';
 import Expense from '../models/Expense.js';
+import Investment from '../models/Investment.js';
 
 // Create a new family group
 export const createFamilyGroup = async (req, res) => {
@@ -33,6 +34,9 @@ export const createFamilyGroup = async (req, res) => {
         });
 
         await familyGroup.save();
+
+        // Update creator's familyRole on User model
+        await User.findByIdAndUpdate(userId, { familyRole: 'Family Head' });
 
         res.status(201).json({
             success: true,
@@ -113,6 +117,13 @@ export const approveMember = async (req, res) => {
 
         familyGroup.members[memberIndex].status = 'Approved';
         await familyGroup.save();
+
+        // Automatically set approved member's familyRole if not set
+        const memberUser = await User.findById(memberId);
+        if (memberUser && !memberUser.familyRole) {
+            memberUser.familyRole = 'Earning Member';
+            await memberUser.save();
+        }
 
         res.status(200).json({ success: true, message: 'Member approved successfully', data: familyGroup.members });
     } catch (error) {
@@ -492,6 +503,165 @@ export const regenerateFamilyCode = async (req, res) => {
             success: true, 
             message: 'Invite code regenerated successfully', 
             familyCode: newCode 
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Get Consolidated Family Investment Portfolio
+export const getFamilyPortfolio = async (req, res) => {
+    try {
+        const familyGroup = req.family; // populated by isApprovedMember
+        const member = req.familyMember; // populated by isApprovedMember
+        const userRole = req.userRole; // populated by isApprovedMember
+
+        // Check if user is Admin or Co-Admin, if not, verify canViewInvestments setting
+        const isAdminOrCo = userRole === 'Admin' || userRole === 'Co-Admin';
+        if (!isAdminOrCo && member && member.canViewInvestments === false) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. You do not have permission to view family investments.'
+            });
+        }
+
+        // Get members who opted to share investments
+        const shareInvestmentUserIds = familyGroup.members
+            .filter(m => m.status === 'Approved' && m.shareInvestments)
+            .map(m => m.user.toString());
+        
+        // Ensure admin is included in sharing list
+        if (!shareInvestmentUserIds.includes(familyGroup.admin.toString())) {
+            shareInvestmentUserIds.push(familyGroup.admin.toString());
+        }
+
+        // Match query
+        const query = {
+            $or: [
+                // Direct family group investments
+                { familyGroupId: familyGroup._id },
+                // Individual synced family investments
+                {
+                    familyGroupId: null,
+                    userId: { $in: shareInvestmentUserIds },
+                    'familySync.enabled': true,
+                    'familySync.familyId': familyGroup._id
+                }
+            ]
+        };
+
+        const investments = await Investment.find(query).populate('userId', 'fullName email');
+
+        let totalInvested = 0;
+        let totalCurrentValue = 0;
+
+        // Seed contributions map with all approved members
+        const memberContributionsMap = {};
+
+        // 1. Resolve Admin info
+        const adminUser = await User.findById(familyGroup.admin);
+        memberContributionsMap[familyGroup.admin.toString()] = {
+            userId: familyGroup.admin.toString(),
+            name: adminUser ? adminUser.fullName : 'Admin',
+            role: 'Admin',
+            totalInvested: 0,
+            totalCurrentValue: 0
+        };
+
+        // 2. Resolve other members
+        for (const m of familyGroup.members) {
+            if (m.status === 'Approved') {
+                const u = await User.findById(m.user);
+                memberContributionsMap[m.user.toString()] = {
+                    userId: m.user.toString(),
+                    name: u ? u.fullName : 'Unknown Member',
+                    role: m.role,
+                    totalInvested: 0,
+                    totalCurrentValue: 0
+                };
+            }
+        }
+
+        // Initial allocation mappings
+        const allocationMap = {
+            stocks: { type: 'stocks', totalInvested: 0, totalCurrentValue: 0 },
+            mutual_funds: { type: 'mutual_funds', totalInvested: 0, totalCurrentValue: 0 },
+            crypto: { type: 'crypto', totalInvested: 0, totalCurrentValue: 0 },
+            bonds: { type: 'bonds', totalInvested: 0, totalCurrentValue: 0 },
+            real_estate: { type: 'real_estate', totalInvested: 0, totalCurrentValue: 0 },
+            other: { type: 'other', totalInvested: 0, totalCurrentValue: 0 }
+        };
+
+        investments.forEach(inv => {
+            const amount = inv.amount || 0;
+            const curVal = inv.currentValue || 0;
+
+            totalInvested += amount;
+            totalCurrentValue += curVal;
+
+            // Allocation sum
+            const type = inv.type || 'other';
+            if (!allocationMap[type]) {
+                allocationMap[type] = { type, totalInvested: 0, totalCurrentValue: 0 };
+            }
+            allocationMap[type].totalInvested += amount;
+            allocationMap[type].totalCurrentValue += curVal;
+
+            // Member sum
+            const uidStr = inv.userId?._id ? inv.userId._id.toString() : (inv.userId ? inv.userId.toString() : '');
+            if (uidStr && memberContributionsMap[uidStr]) {
+                memberContributionsMap[uidStr].totalInvested += amount;
+                memberContributionsMap[uidStr].totalCurrentValue += curVal;
+            } else if (uidStr) {
+                // Member might not be in the approved list anymore, add as raw
+                memberContributionsMap[uidStr] = {
+                    userId: uidStr,
+                    name: inv.userId.fullName || 'Unknown Contributor',
+                    role: 'Contributor',
+                    totalInvested: amount,
+                    totalCurrentValue: curVal
+                };
+            }
+        });
+
+        const totalProfitLoss = totalCurrentValue - totalInvested;
+        const profitLossPercentage = totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0;
+
+        const summary = {
+            totalInvested,
+            totalCurrentValue,
+            totalProfitLoss,
+            profitLossPercentage
+        };
+
+        const memberContributions = Object.values(memberContributionsMap).map(m => {
+            const pLoss = m.totalCurrentValue - m.totalInvested;
+            const pLossPercent = m.totalInvested > 0 ? (pLoss / m.totalInvested) * 100 : 0;
+            return {
+                ...m,
+                profitLoss: pLoss,
+                profitLossPercentage: pLossPercent
+            };
+        });
+
+        const allocation = Object.values(allocationMap)
+            .filter(a => a.totalInvested > 0 || a.totalCurrentValue > 0)
+            .map(a => {
+                const percentage = totalCurrentValue > 0 ? (a.totalCurrentValue / totalCurrentValue) * 100 : 0;
+                return {
+                    ...a,
+                    percentage: Number(percentage.toFixed(2))
+                };
+            });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                summary,
+                memberContributions,
+                allocation,
+                investments
+            }
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

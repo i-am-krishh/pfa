@@ -1,9 +1,11 @@
 import Investment from '../models/Investment.js';
 import FamilyGroup from '../models/FamilyGroup.js';
+import mongoose from 'mongoose';
+import * as yahooFinanceService from '../services/yahooFinanceService.js';
 
 export const addInvestment = async (req, res) => {
     try {
-        const { type, name, amount, currentValue, quantity, pricePerUnit, investmentDate, expectedReturnPercentage, riskLevel, broker, description, familyGroupId, familySync } = req.body;
+        const { type, name, symbol, amount, currentValue, quantity, pricePerUnit, investmentDate, expectedReturnPercentage, riskLevel, broker, description, familyGroupId, familySync, fetchedStockPrice } = req.body;
 
         if (familyGroupId) {
             const familyGroup = await FamilyGroup.findById(familyGroupId);
@@ -16,15 +18,48 @@ export const addInvestment = async (req, res) => {
             }
         }
 
+        let calculatedCurrentValue = currentValue;
+        let finalFetchedStockPrice = fetchedStockPrice || 0;
+        let finalSymbol = symbol || '';
+        let finalName = name;
+
+        if (type === 'stocks') {
+            const cleanSymbol = symbol || name;
+            if (cleanSymbol) {
+                try {
+                    const quote = await yahooFinanceService.getStockQuote(cleanSymbol);
+                    if (quote) {
+                        finalFetchedStockPrice = quote.currentPrice;
+                        calculatedCurrentValue = (parseFloat(quantity) || 1) * finalFetchedStockPrice;
+                        finalSymbol = quote.symbol;
+                        finalName = quote.companyName;
+                    }
+                } catch (error) {
+                    console.error('[addInvestment] Yahoo Finance API fail:', error.message);
+                    if (!finalFetchedStockPrice && !currentValue) {
+                        return res.status(500).json({ success: false, message: 'Live Price Unavailable' });
+                    }
+                }
+            }
+        }
+
+        // Auto-calculate amount if not provided
+        let finalAmount = amount;
+        if (type === 'stocks' && (!finalAmount || finalAmount === 0)) {
+            finalAmount = (parseFloat(quantity) || 1) * (parseFloat(pricePerUnit) || 0);
+        }
+
         const investment = new Investment({
             userId: req.user.userId,
             familyGroupId: familyGroupId || null,
             type,
-            name,
-            amount,
-            currentValue,
+            name: finalName,
+            symbol: finalSymbol,
+            amount: finalAmount,
+            currentValue: calculatedCurrentValue,
             quantity,
             pricePerUnit,
+            fetchedStockPrice: finalFetchedStockPrice,
             investmentDate,
             expectedReturnPercentage,
             riskLevel,
@@ -41,9 +76,10 @@ export const addInvestment = async (req, res) => {
             investment
         });
     } catch (error) {
+        const isDev = process.env.NODE_ENV === 'development';
         res.status(500).json({ 
             success: false, 
-            message: error.message || 'Error adding investment' 
+            message: isDev ? error.message : 'Error adding investment' 
         });
     }
 };
@@ -63,9 +99,10 @@ export const getAllInvestments = async (req, res) => {
             investments
         });
     } catch (error) {
+        const isDev = process.env.NODE_ENV === 'development';
         res.status(500).json({ 
             success: false, 
-            message: error.message || 'Error fetching investments' 
+            message: isDev ? error.message : 'Error fetching investments' 
         });
     }
 };
@@ -83,9 +120,10 @@ export const getInvestmentById = async (req, res) => {
 
         res.status(200).json({ success: true, investment });
     } catch (error) {
+        const isDev = process.env.NODE_ENV === 'development';
         res.status(500).json({ 
             success: false, 
-            message: error.message || 'Error fetching investment' 
+            message: isDev ? error.message : 'Error fetching investment' 
         });
     }
 };
@@ -101,8 +139,39 @@ export const updateInvestment = async (req, res) => {
             });
         }
 
+        const updateData = { ...req.body };
+
+        if (updateData.type === 'stocks') {
+            const cleanSymbol = updateData.symbol || updateData.name || investment.symbol || investment.name;
+            const cleanQuantity = updateData.quantity !== undefined ? parseFloat(updateData.quantity) : investment.quantity;
+            const cleanPricePerUnit = updateData.pricePerUnit !== undefined ? parseFloat(updateData.pricePerUnit) : investment.pricePerUnit;
+
+            try {
+                const quote = await yahooFinanceService.getStockQuote(cleanSymbol);
+                if (quote) {
+                    updateData.fetchedStockPrice = quote.currentPrice;
+                    updateData.currentValue = cleanQuantity * quote.currentPrice;
+                    updateData.symbol = quote.symbol;
+                    updateData.name = quote.companyName;
+                }
+            } catch (error) {
+                console.error('[updateInvestment] Yahoo Finance API fail:', error.message);
+                if (updateData.fetchedStockPrice === undefined) {
+                    updateData.fetchedStockPrice = investment.fetchedStockPrice || 0;
+                }
+                if (updateData.currentValue === undefined) {
+                    updateData.currentValue = cleanQuantity * (updateData.fetchedStockPrice || investment.fetchedStockPrice || 0);
+                }
+            }
+
+            // Auto-calculate amount if not provided
+            if (updateData.amount === undefined || updateData.amount === 0) {
+                updateData.amount = cleanQuantity * cleanPricePerUnit;
+            }
+        }
+
         investment = await Investment.findByIdAndUpdate(req.params.id, 
-            { ...req.body, updatedAt: Date.now() }, 
+            { ...updateData, updatedAt: Date.now() }, 
             { new: true, runValidators: true }
         );
 
@@ -112,9 +181,10 @@ export const updateInvestment = async (req, res) => {
             investment
         });
     } catch (error) {
+        const isDev = process.env.NODE_ENV === 'development';
         res.status(500).json({ 
             success: false, 
-            message: error.message || 'Error updating investment' 
+            message: isDev ? error.message : 'Error updating investment' 
         });
     }
 };
@@ -137,9 +207,10 @@ export const deleteInvestment = async (req, res) => {
             message: 'Investment deleted successfully'
         });
     } catch (error) {
+        const isDev = process.env.NODE_ENV === 'development';
         res.status(500).json({ 
             success: false, 
-            message: error.message || 'Error deleting investment' 
+            message: isDev ? error.message : 'Error deleting investment' 
         });
     }
 };
@@ -147,7 +218,7 @@ export const deleteInvestment = async (req, res) => {
 export const getInvestmentByType = async (req, res) => {
     try {
         const investments = await Investment.aggregate([
-            { $match: { userId: require('mongoose').Types.ObjectId(req.user.userId) } },
+            { $match: { userId: new mongoose.Types.ObjectId(req.user.userId) } },
             { $group: { 
                 _id: '$type', 
                 totalAmount: { $sum: '$amount' },
@@ -162,9 +233,10 @@ export const getInvestmentByType = async (req, res) => {
             investments
         });
     } catch (error) {
+        const isDev = process.env.NODE_ENV === 'development';
         res.status(500).json({ 
             success: false, 
-            message: error.message || 'Error fetching investments by type' 
+            message: isDev ? error.message : 'Error fetching investments by type' 
         });
     }
 };

@@ -192,8 +192,8 @@ const FamilyGoals = ({ familyId }) => {
 
                             <div className="mb-4">
                                 <div className="flex justify-between items-end mb-2">
-                                    <span className="text-2xl font-bold text-slate-800">${goal.currentAmount}</span>
-                                    <span className="text-sm font-semibold text-slate-500">of ${goal.targetAmount}</span>
+                                    <span className="text-2xl font-bold text-slate-800">₹{goal.currentAmount}</span>
+                                    <span className="text-sm font-semibold text-slate-500">of ₹{goal.targetAmount}</span>
                                 </div>
                                 <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
                                     <div 
@@ -204,7 +204,7 @@ const FamilyGoals = ({ familyId }) => {
                                 <div className="flex justify-between items-center mt-2">
                                     <span className="text-xs font-bold text-slate-400">{goal.progressPercentage}%</span>
                                     {goal.estimatedStatus !== 'completed' && (
-                                        <span className="text-xs font-bold text-slate-400">${goal.remainingAmount} to go</span>
+                                        <span className="text-xs font-bold text-slate-400">₹{goal.remainingAmount} to go</span>
                                     )}
                                 </div>
                             </div>

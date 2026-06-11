@@ -25,6 +25,137 @@ export default function Chatbot() {
     scrollToBottom();
   }, [messages, isOpen]);
 
+  const formatMessageText = (text, sender) => {
+    if (!text) return "";
+
+    const lines = text.split("\n");
+    let elements = [];
+    let currentList = [];
+    let listType = null; // 'ul' | 'ol' | null
+
+    const flushList = (key) => {
+      if (currentList.length > 0) {
+        if (listType === 'ul') {
+          elements.push(
+            <ul key={`ul-${key}`} className="list-disc pl-5 my-1.5 space-y-1">
+              {currentList}
+            </ul>
+          );
+        } else if (listType === 'ol') {
+          elements.push(
+            <ol key={`ol-${key}`} className="list-decimal pl-5 my-1.5 space-y-1">
+              {currentList}
+            </ol>
+          );
+        }
+        currentList = [];
+        listType = null;
+      }
+    };
+
+    const formatLineContent = (line) => {
+      const parts = line.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g);
+      return parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return (
+            <strong 
+              key={index} 
+              className={`font-bold ${sender === 'bot' ? 'text-slate-900' : 'text-white'}`}
+            >
+              {part.slice(2, -2)}
+            </strong>
+          );
+        }
+        if (part.startsWith('*') && part.endsWith('*')) {
+          return (
+            <em key={index} className="italic">
+              {part.slice(1, -1)}
+            </em>
+          );
+        }
+        if (part.startsWith('`') && part.endsWith('`')) {
+          return (
+            <code 
+              key={index} 
+              className={`px-1.5 py-0.5 rounded font-mono text-xs ${
+                sender === 'bot' 
+                  ? 'bg-slate-100 text-rose-600 border border-slate-200/60' 
+                  : 'bg-white/20 text-white'
+              }`}
+            >
+              {part.slice(1, -1)}
+            </code>
+          );
+        }
+        return part;
+      });
+    };
+
+    lines.forEach((line, index) => {
+      const trimmedLine = line.trim();
+
+      // Check for headings (e.g. ### Title or ## Title or # Title)
+      const headingMatch = trimmedLine.match(/^(#{1,6})\s+(.*)/);
+      if (headingMatch) {
+        flushList(index);
+        const level = headingMatch[1].length;
+        const headingText = formatLineContent(headingMatch[2]);
+        if (level === 1) {
+          elements.push(<h1 key={`h-${index}`} className="text-base font-black text-slate-900 mt-3 mb-1.5 border-b border-slate-200/50 pb-0.5">{headingText}</h1>);
+        } else if (level === 2) {
+          elements.push(<h2 key={`h-${index}`} className="text-sm font-extrabold text-slate-900 mt-2.5 mb-1">{headingText}</h2>);
+        } else {
+          elements.push(<h3 key={`h-${index}`} className="text-xs font-bold text-slate-900 mt-2 mb-0.5 uppercase tracking-wider">{headingText}</h3>);
+        }
+        return;
+      }
+
+      const ulMatch = trimmedLine.match(/^[-*•]\s+(.*)/);
+      if (ulMatch) {
+        if (listType !== 'ul') {
+          flushList(index);
+          listType = 'ul';
+        }
+        currentList.push(
+          <li key={`li-${index}`} className="text-sm">
+            {formatLineContent(ulMatch[1])}
+          </li>
+        );
+        return;
+      }
+
+      const olMatch = trimmedLine.match(/^(\d+)\.\s+(.*)/);
+      if (olMatch) {
+        if (listType !== 'ol') {
+          flushList(index);
+          listType = 'ol';
+        }
+        currentList.push(
+          <li key={`li-${index}`} className="text-sm">
+            {formatLineContent(olMatch[2])}
+          </li>
+        );
+        return;
+      }
+
+      flushList(index);
+
+      if (trimmedLine === '') {
+        elements.push(<div key={`br-${index}`} className="h-2" />);
+      } else {
+        elements.push(
+          <p key={`p-${index}`} className="leading-relaxed mb-1">
+            {formatLineContent(line)}
+          </p>
+        );
+      }
+    });
+
+    flushList(lines.length);
+
+    return elements;
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
@@ -37,9 +168,12 @@ export default function Chatbot() {
     try {
       console.log("Using Chatbot API:", `${API_URL}/chatbot/message`);
       
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
       const response = await axios.post(`${API_URL}/chatbot/message`, {
         message: userMessage
-      });
+      }, { headers });
 
       if (response.data.success) {
         setMessages((prev) => [...prev, { text: response.data.reply, sender: "bot" }]);
@@ -47,8 +181,7 @@ export default function Chatbot() {
     } catch (error) {
       console.error("Error sending message:", error);
       
-      // Get a more specific error message if available
-      let errorMessage = error.response?.data?.message || "Sorry, I encountered an error. Please try again.";
+      let errorMessage = error.response?.data?.error || error.response?.data?.message || "Sorry, I encountered an error. Please try again.";
       
       if (error.response?.data?.details) {
         errorMessage += `\nDetails: ${error.response.data.details}`;
@@ -99,7 +232,9 @@ export default function Chatbot() {
                       : 'bg-white text-slate-700 border border-slate-200 rounded-bl-none'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.text}</p>
+                  <div className="break-words leading-relaxed space-y-1 whitespace-pre-wrap">
+                    {formatMessageText(msg.text, msg.sender)}
+                  </div>
                 </div>
               </div>
             ))}

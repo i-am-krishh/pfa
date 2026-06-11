@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { CreditCard, Plus, Cross, Calendar, Tag, Search, TrendingDown, Filter, X, ShoppingBag, AlertTriangle } from 'lucide-react';
+import { CreditCard, Plus, Cross, Calendar, Tag, Search, TrendingDown, Filter, X, ShoppingBag, AlertTriangle, Pencil, Trash2 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -14,6 +14,7 @@ export default function Expenses() {
     const [filterCategory, setFilterCategory] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [familyGroups, setFamilyGroups] = useState([]);
+    const [editingRecord, setEditingRecord] = useState(null);
 
     const [formData, setFormData] = useState({
         category: 'food',
@@ -61,6 +62,35 @@ export default function Expenses() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleEditClick = (expense) => {
+        setEditingRecord(expense);
+        setFormData({
+            category: expense.category,
+            amount: expense.amount.toString(),
+            description: expense.description || '',
+            date: new Date(expense.date).toISOString().split('T')[0],
+            paymentMethod: expense.paymentMethod,
+            familyGroupId: expense.familySync?.familyId || '',
+            familySyncEnabled: expense.familySync?.enabled || false
+        });
+        setShowForm(true);
+    };
+
+    const handleCloseForm = () => {
+        setShowForm(false);
+        setEditingRecord(null);
+        setFormData({
+            category: 'food',
+            amount: '',
+            description: '',
+            date: new Date().toISOString().split('T')[0],
+            paymentMethod: 'cash',
+            familyGroupId: '',
+            familySyncEnabled: false
+        });
+        setFormError('');
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         const token = localStorage.getItem('token');
@@ -75,28 +105,27 @@ export default function Expenses() {
                     visibility: 'family'
                 }
             };
-            await axios.post(`${API_URL}/expense`, submitData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setFormData({
-                category: 'food',
-                amount: '',
-                description: '',
-                date: new Date().toISOString().split('T')[0],
-                paymentMethod: 'cash',
-                familyGroupId: '',
-                familySyncEnabled: false
-            });
-            setShowForm(false);
-            setFormError('');
+
+            if (editingRecord) {
+                await axios.put(`${API_URL}/expense/${editingRecord._id}`, submitData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } else {
+                await axios.post(`${API_URL}/expense`, submitData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
+
+            handleCloseForm();
             fetchExpenses(token);
         } catch (error) {
-            console.error('Error adding expense:', error);
-            setFormError(error.response?.data?.message || 'Error adding expense. Please try again.');
+            console.error('Error saving expense:', error);
+            setFormError(error.response?.data?.message || 'Error saving expense. Please try again.');
         } finally {
             setLoading(false);
         }
     };
+
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this expense?')) return;
@@ -233,11 +262,11 @@ export default function Expenses() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
                                             <button 
-                                                onClick={() => handleDelete(expense._id)}
-                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                title="Delete Record"
+                                                onClick={() => handleEditClick(expense)}
+                                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                title="Edit Record"
                                             >
-                                                <Cross size={16} />
+                                                <Pencil size={16} />
                                             </button>
                                         </td>
                                     </tr>
@@ -247,14 +276,14 @@ export default function Expenses() {
                     </div>
                 )}
             </div>
-
+ 
             {/* Modal Form */}
             {showForm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <h3 className="text-lg font-bold text-slate-800">Add New Expense</h3>
-                            <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors">
+                            <h3 className="text-lg font-bold text-slate-800">{editingRecord ? 'Edit Expense' : 'Add New Expense'}</h3>
+                            <button onClick={handleCloseForm} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
@@ -366,14 +395,29 @@ export default function Expenses() {
                                 </div>
                             )}
 
-                            <div className="pt-2">
+                            <div className="pt-2 space-y-2">
                                 <button
                                     type="submit"
                                     disabled={loading}
                                     className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-rose-500/20 transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100"
                                 >
-                                    {loading ? 'Adding...' : 'Log Expense'}
+                                    {loading ? (editingRecord ? 'Saving...' : 'Adding...') : (editingRecord ? 'Save Changes' : 'Log Expense')}
                                 </button>
+                                
+                                {editingRecord && (
+                                    <button
+                                        type="button"
+                                        disabled={loading}
+                                        onClick={() => {
+                                            handleDelete(editingRecord._id);
+                                            handleCloseForm();
+                                        }}
+                                        className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded-xl border border-red-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70"
+                                    >
+                                        <Trash2 size={16} />
+                                        Delete Record
+                                    </button>
+                                )}
                             </div>
                         </form>
                     </div>

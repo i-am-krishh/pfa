@@ -18,46 +18,73 @@ import familyTransactionRoutes from './routes/familyTransactionRoutes.js';
 import familyGoalRoutes from './routes/familyGoalRoutes.js';
 import familyGoalPlannerRoutes from './routes/familyGoalPlannerRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
+import stockRoutes from './routes/stockRoutes.js';
+import watchlistRoutes from './routes/watchlistRoutes.js';
+import marketRoutes from './routes/marketRoutes.js';
+import portfolioRoutes from './routes/portfolioRoutes.js';
+import familyPortfolioRoutes from './routes/familyPortfolioRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+import statementRoutes from './routes/statementRoutes.js';
+import debugRoutes from './routes/debugRoutes.js';
+import welfareRoutes from './routes/welfareRoutes.js';
+import { debugStockQuote } from './controllers/stockController.js';
+import { debugStatementUpload } from './controllers/statementController.js';
+import multer from 'multer';
+import { createServer } from 'http';
+import { initSocketService } from './services/socketService.js';
 
-dotenv.config();
+dotenv.config(); // Reload watch trigger to update Twelve Data key
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGODB_ATLAS_URI || 'mongodb://localhost:27017/PersonalFinance';
+const MONGODB_URI = process.env.MONGODB_ATLAS_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/PersonalFinance';
 
 // Middleware
 app.use(cors({
     origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', process.env.FRONTEND_URL, /\.vercel\.app$/].filter(Boolean),
     credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Database connection
+// Monitor Mongoose connection
+mongoose.connection.on('error', err => {
+    console.error('Mongoose connection error:', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+    console.log('Mongoose disconnected. Attempting to reconnect...');
+});
+
+mongoose.connection.on('connected', () => {
+    console.log('Mongoose connected successfully to', mongoose.connection.name);
+});
+
 // Database connection
 const connectDB = async () => {
     try {
-        if (mongoose.connection.readyState === 1) {
-            console.log('Using existing MongoDB connection');
-            return;
-        }
+        if (mongoose.connection.readyState === 1) return;
+        
         console.log('Connecting to MongoDB...');
+        // Mask password in logs - using the same logic as successful test_db.mjs
+        const maskedUri = MONGODB_URI.replace(/:([^:@]+)@/, ':****@');
+        console.log(`Using URI: ${maskedUri}`);
+
         await mongoose.connect(MONGODB_URI, {
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
-            dbName: 'PersonalFinance', // Explicitly set DB name
-            family: 4 // Force IPv4
+            dbName: 'PersonalFinance',
+            retryWrites: true,
+            w: 'majority'
         });
         console.log('MongoDB connected successfully');
     } catch (error) {
-        console.error('MongoDB connection error:', error);
-        // Do not swallow error? If we do, future calls fail silently or timeout.
-        throw error;
+        console.error('MongoDB connection error:', error.message);
     }
 };
 
 // Connect immediately
-connectDB().catch(err => console.error("Initial connection failed", err));
+connectDB();
 
 // API Routes need to await DB connection? 
 // Mongoose buffers automatically, but if it times out, it means connection failed.
@@ -80,6 +107,20 @@ app.use('/api/family/transactions', familyTransactionRoutes);
 app.use('/api/family/goals', familyGoalRoutes);
 app.use('/api/family/goal-planner', familyGoalPlannerRoutes);
 app.use('/api/family/chat', chatRoutes);
+app.use('/api/stocks', stockRoutes);
+app.get('/api/debug/stock/:symbol', debugStockQuote);
+
+const serverUpload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
+app.post('/api/debug/statement', serverUpload.single('file'), debugStatementUpload);
+app.use('/api/debug', debugRoutes);
+
+app.use('/api/watchlist', watchlistRoutes);
+app.use('/api/market', marketRoutes);
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/family/portfolio', familyPortfolioRoutes);
+app.use('/api/notification', notificationRoutes);
+app.use('/api/statement', statementRoutes);
+app.use('/api/welfare', welfareRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -117,7 +158,9 @@ export default app;
 // Only listen if run directly
 import { fileURLToPath } from 'url';
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-    app.listen(PORT, () => {
+    const httpServer = createServer(app);
+    initSocketService(httpServer);
+    httpServer.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
         console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });

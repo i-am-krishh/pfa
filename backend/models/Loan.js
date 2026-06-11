@@ -41,6 +41,11 @@ const loanSchema = new mongoose.Schema({
         required: true,
         min: [0, 'Interest rate cannot be negative']
     },
+    interestType: {
+        type: String,
+        enum: ['simple', 'compound'],
+        default: 'compound'
+    },
     tenure: {
         type: Number,
         required: true

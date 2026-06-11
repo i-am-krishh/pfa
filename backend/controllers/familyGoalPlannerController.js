@@ -7,7 +7,7 @@ import mongoose from 'mongoose';
 
 export const analyzeGoal = async (req, res) => {
     try {
-        const { familyId, goalType, goalName, targetAmount, currentSavedAmount, deadlineMonths, priority } = req.body;
+        const { familyId, goalType, goalName, targetAmount, currentSavedAmount, deadlineMonths, priority, riskProfile = 'medium' } = req.body;
         const family = req.family;
 
         if (!goalType || !goalName || !targetAmount || !deadlineMonths) {
@@ -70,127 +70,98 @@ export const analyzeGoal = async (req, res) => {
         const totalMonthlyExpenses = (expenseData[0]?.total || 0);
         const totalMonthlyEMI = (loanData[0]?.totalEMI || 0);
 
-        // 2. Financial Calculations
+        // 2. Financial Calculations with Investment Integration
         const monthlySurplus = totalMonthlyIncome - totalMonthlyExpenses;
-        const remainingToSave = targetAmount - currentSavedAmount;
-        const monthlyRequiredSaving = remainingToSave / deadlineMonths;
-        const monthlyShortfall = Math.max(0, monthlyRequiredSaving - monthlySurplus);
         const savingsRate = totalMonthlyIncome > 0 ? (monthlySurplus / totalMonthlyIncome) * 100 : 0;
         const emiToIncomeRatio = totalMonthlyIncome > 0 ? (totalMonthlyEMI / totalMonthlyIncome) * 100 : 0;
 
-        // 3. Feasibility Score logic
-        let feasibilityScore = 70; // Base score
-        if (monthlySurplus >= monthlyRequiredSaving) feasibilityScore += 20;
-        else feasibilityScore -= 20;
+        // Inflation Adjustment (assume 6% annual inflation)
+        const inflationRate = 0.06;
+        const years = deadlineMonths / 12;
+        const futureTargetAmount = Math.round(targetAmount * Math.pow(1 + inflationRate, years));
 
-        if (emiToIncomeRatio > 40) feasibilityScore -= 15;
-        if (savingsRate < 20) feasibilityScore -= 10;
-        if (savingsRate > 40) feasibilityScore += 10;
-        
-        feasibilityScore = Math.max(0, Math.min(100, feasibilityScore));
+        // Returns based on risk profile
+        let expectedReturn = 0.09; // Medium: 9%
+        if (riskProfile.toLowerCase() === 'low') expectedReturn = 0.06; // Low: 6%
+        if (riskProfile.toLowerCase() === 'high') expectedReturn = 0.12; // High: 12%
+
+        // Compound growth on existing savings over timeline
+        const monthlyRate = expectedReturn / 12;
+        const fvSaved = Math.round(currentSavedAmount * Math.pow(1 + monthlyRate, deadlineMonths));
+
+        // Required Monthly Investment (SIP growth calculations)
+        const remainingTarget = Math.max(0, futureTargetAmount - fvSaved);
+        const sipFactor = ((Math.pow(1 + monthlyRate, deadlineMonths) - 1) / monthlyRate) * (1 + monthlyRate);
+        const requiredMonthlyInvestment = remainingTarget > 0 ? Math.round(remainingTarget / sipFactor) : 0;
+        const monthlyRequiredSaving = requiredMonthlyInvestment; // compatibility mapping
+
+        // Projected Future Value if investing the current surplus + existing saved
+        const fvSurplusSIP = Math.round(monthlySurplus * sipFactor);
+        const projectedFutureValue = fvSaved + fvSurplusSIP;
+
+        // Monthly Shortfall
+        const monthlyShortfall = Math.max(0, requiredMonthlyInvestment - monthlySurplus);
+
+        // Goal Achievement Probability based on savings capacity safety margin
+        let achievementProbability = 100;
+        if (requiredMonthlyInvestment > 0) {
+            const ratio = monthlySurplus / requiredMonthlyInvestment;
+            if (ratio >= 1.5) {
+                achievementProbability = Math.min(99, 95 + Math.round((ratio - 1.5) * 2));
+            } else if (ratio >= 1.0) {
+                achievementProbability = 80 + Math.round((ratio - 1.0) * 30);
+            } else if (ratio >= 0.5) {
+                achievementProbability = 40 + Math.round((ratio - 0.5) * 80);
+            } else {
+                achievementProbability = Math.max(5, Math.round(ratio * 80));
+            }
+        }
+
+        // Suggested investment strategy text
+        let suggestedStrategy = '';
+        if (riskProfile.toLowerCase() === 'low') {
+            suggestedStrategy = "Conservative: Route 25% to Nifty 50 Index Mutual Funds, 65% to AAA Debt Corporate Bond Funds & Liquid Deposits, and 10% to Gold Sovereign Bonds.";
+        } else if (riskProfile.toLowerCase() === 'high') {
+            suggestedStrategy = "Aggressive: Route 40% to Large Cap Index ETFs, 35% to Mid & Small Cap Mutual Funds, 15% to Alternative Assets (e.g. Crypto/Sectoral), and 10% to short-term Bond Funds.";
+        } else {
+            suggestedStrategy = "Balanced: Route 55% to Diversified Multi-Cap Equity Funds, 30% to Dynamic Bond Mutual Funds, 10% to Gold ETFs, and 5% to Liquid Cash equivalents.";
+        }
+
+        // 3. Feasibility Score mapping
+        const feasibilityScore = achievementProbability;
 
         let status = 'achievable';
         if (feasibilityScore < 40) status = 'unlikely';
         else if (feasibilityScore < 70) status = 'difficult';
 
-        // 4. Gemini AI Guidance
-        const API_KEY = process.env.GEMINI_API_KEY;
-        let aiResult = { 
-            summary: `Financial Analysis: Your family currently generates a monthly income of ₹${totalMonthlyIncome.toLocaleString()} with expenses totaling ₹${totalMonthlyExpenses.toLocaleString()}, leaving a surplus of ₹${monthlySurplus.toLocaleString()}. To achieve the "${goalName}" goal within ${deadlineMonths} months, you need to save ₹${monthlyRequiredSaving.toLocaleString()} monthly. Currently, your ${monthlyShortfall > 0 ? `shortfall is ₹${monthlyShortfall.toLocaleString()} per month` : 'surplus covers the requirement'}. With an EMI-to-income ratio of ${emiToIncomeRatio.toFixed(1)}% and a savings rate of ${savingsRate.toFixed(1)}%, this goal is considered ${status.toUpperCase()}.`,
-            isAchievable: status === 'achievable' ? "true" : "false",
-            monthlyPlan: `Aim to save at least ₹${monthlyRequiredSaving.toLocaleString()} per month.`,
-            expenseReduction: "Review your discretionary spending to close the gap.",
-            riskWarnings: "General market inflation and unexpected expenses.",
-            investmentGuidance: "Consider safe high-yield savings accounts or liquid funds.",
-            alternativeTimeline: status === 'difficult' ? "Consider extending the deadline to reduce monthly pressure." : null,
-            roadmap: [
-                { step: 1, title: "Initial Buffer", description: "Set aside the first month's required saving.", targetDate: new Date() }
-            ],
-            fullResponse: "Rule-based fallback summary."
-        };
+        // 4. Gemini AI Guidance call
+        const geminiResult = await runFamilyGoalPlannerGemini({
+            goalName,
+            goalType,
+            targetAmount,
+            futureTargetAmount,
+            currentSavedAmount,
+            fvSaved,
+            deadlineMonths,
+            priority,
+            riskProfile,
+            suggestedStrategy,
+            totalMonthlyIncome,
+            totalMonthlyExpenses,
+            monthlySurplus,
+            totalMonthlyEMI,
+            savingsRate,
+            requiredMonthlyInvestment,
+            monthlyShortfall,
+            achievementProbability,
+            feasibilityScore
+        });
 
-        if (API_KEY && API_KEY !== 'your_gemini_api_key') {
-            try {
-                const genAI = new GoogleGenerativeAI(API_KEY);
-                const modelsToTry = ["gemini-1.5-flash", "gemini-pro", "gemini-1.0-pro"];
-                let success = false;
-
-                for (const modelName of modelsToTry) {
-                    try {
-                        const model = genAI.getGenerativeModel({ model: modelName });
-                        const prompt = `
-                            You are an expert family financial advisor. Analyze the following family financial goal:
-                            
-                            Goal: ${goalName} (${goalType})
-                            Target Amount: ₹${targetAmount}
-                            Current Saved: ₹${currentSavedAmount}
-                            Deadline: ${deadlineMonths} months
-                            Priority: ${priority}
-                            
-                            Family Financial Metrics:
-                            - Monthly Income: ₹${totalMonthlyIncome}
-                            - Monthly Expenses: ₹${totalMonthlyExpenses}
-                            - Monthly Surplus: ₹${monthlySurplus}
-                            - Total Monthly EMI: ₹${totalMonthlyEMI}
-                            - Savings Rate: ${savingsRate.toFixed(2)}%
-                            - EMI-to-Income Ratio: ${emiToIncomeRatio.toFixed(2)}%
-                            - Required Monthly Saving: ₹${monthlyRequiredSaving.toFixed(2)}
-                            - Monthly Shortfall: ₹${monthlyShortfall.toFixed(2)}
-                            - Feasibility Score: ${feasibilityScore}/100
-                            
-                            Instructions:
-                            Provide a detailed analysis in JSON format with the following keys:
-                            - summary: A detailed and insightful executive summary explaining the current financial health of the family in relation to this goal, including strengths and major obstacles.
-                            - isAchievable: A boolean string ("true"/"false") and why.
-                            - monthlyPlan: A specific monthly saving and investment strategy.
-                            - expenseReduction: 3-4 specific areas to cut costs.
-                            - riskWarnings: Potential financial risks.
-                            - investmentGuidance: Suggestions on where to keep/invest the savings.
-                            - alternativeTimeline: If the goal is difficult, suggest a realistic timeline.
-                            - roadmap: A list of 4-5 steps (title and description) to achieve this goal.
-                            
-                            IMPORTANT: The response MUST be valid JSON. Do not include any text before or after the JSON.
-                        `;
-
-                        const result = await model.generateContent(prompt);
-                        const response = await result.response;
-                        let text = response.text().trim();
-                        
-                        // Clean markdown formatting if present
-                        if (text.includes('```')) {
-                            text = text.replace(/```json|```/g, '').trim();
-                        }
-                        
-                        const jsonResult = JSON.parse(text);
-
-                        aiResult = {
-                            summary: jsonResult.summary,
-                            isAchievable: jsonResult.isAchievable,
-                            monthlyPlan: jsonResult.monthlyPlan,
-                            expenseReduction: jsonResult.expenseReduction,
-                            riskWarnings: jsonResult.riskWarnings,
-                            investmentGuidance: jsonResult.investmentGuidance,
-                            alternativeTimeline: jsonResult.alternativeTimeline,
-                            roadmap: jsonResult.roadmap?.map((step, index) => ({
-                                step: index + 1,
-                                title: step.title,
-                                description: step.description,
-                                targetDate: new Date(Date.now() + (deadlineMonths / 4) * (index + 1) * 30 * 24 * 60 * 60 * 1000)
-                            })),
-                            fullResponse: text
-                        };
-                        success = true;
-                        break;
-                    } catch (modelError) {
-                        console.error(`Model ${modelName} failed in Goal Planner:`, modelError.message);
-                    }
-                }
-            } catch (aiError) {
-                console.error("Gemini API Error in Goal Planner:", aiError);
-            }
-        } else {
-            console.warn("GEMINI_API_KEY is missing or invalid in Goal Planner.");
+        if (!geminiResult.success) {
+            return res.status(503).json({ error: "Gemini API unavailable" });
         }
+
+        const aiResult = geminiResult.transformedResponse;
 
         // 5. Save to Database
         const goalPlan = new FamilyGoalPlan({
@@ -202,6 +173,12 @@ export const analyzeGoal = async (req, res) => {
             currentSavedAmount,
             deadlineMonths,
             priority,
+            riskProfile,
+            inflationRate,
+            futureTargetAmount,
+            projectedFutureValue,
+            achievementProbability,
+            suggestedStrategy,
             monthlyRequiredSaving,
             monthlyCurrentSurplus: monthlySurplus,
             monthlyShortfall,
@@ -246,4 +223,122 @@ export const getGoalPlanDetail = async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
+};
+
+export const runFamilyGoalPlannerGemini = async (data) => {
+    const API_KEY = process.env.GEMINI_API_KEY;
+    const isApiKeyMissing = !API_KEY || API_KEY.includes('your_gemini') || API_KEY === '';
+
+    const prompt = `
+        You are an expert family financial advisor. Analyze the following family financial goal and provide investment suggestions:
+        
+        Goal: ${data.goalName} (${data.goalType})
+        Current Value Target Amount: ₹${data.targetAmount}
+        Inflation-Adjusted Target Amount (6% inflation): ₹${data.futureTargetAmount}
+        Current Saved: ₹${data.currentSavedAmount} (Projected to grow to ₹${data.fvSaved} in ${data.deadlineMonths} months)
+        Deadline: ${data.deadlineMonths} months
+        Priority: ${data.priority}
+        Risk Profile Selected: ${data.riskProfile}
+        Suggested Allocation Strategy: ${data.suggestedStrategy}
+        
+        Family Financial Metrics:
+        - Monthly Income: ₹${data.totalMonthlyIncome}
+        - Monthly Expenses: ₹${data.totalMonthlyExpenses}
+        - Net Monthly Surplus: ₹${data.monthlySurplus}
+        - Total Monthly EMI: ₹${data.totalMonthlyEMI}
+        - Savings Rate: ${data.savingsRate.toFixed(2)}%
+        - Required Monthly SIP: ₹${data.requiredMonthlyInvestment}
+        - Monthly Shortfall: ₹${data.monthlyShortfall}
+        - Goal Achievement Probability: ${data.achievementProbability}%
+        - Feasibility Score: ${data.feasibilityScore}/100
+        
+        Instructions:
+        Provide a detailed analysis in JSON format with the following keys:
+        - summary: A detailed and insightful executive summary explaining the financial health of the family in relation to this goal, inflation-adjusted target, and probabilities.
+        - isAchievable: A boolean string ("true"/"false") and why.
+        - monthlyPlan: A specific monthly saving and investment strategy referencing the suggested allocation: ${data.suggestedStrategy} and required SIP.
+        - expenseReduction: 3-4 specific areas to cut costs.
+        - riskWarnings: Potential financial risks and market volatility matching the ${data.riskProfile} risk profile.
+        - investmentGuidance: Suggestions on where to keep/invest the savings matching the strategy: ${data.suggestedStrategy}.
+        - alternativeTimeline: Suggest a realistic timeline or changes if goal is difficult.
+        - roadmap: A list of 4-5 steps (title and description) to achieve this goal.
+        
+        IMPORTANT: The response MUST be valid JSON. Do not include any text before or after the JSON.
+    `;
+
+    if (isApiKeyMissing) {
+        return {
+            success: false,
+            prompt,
+            rawResponse: null,
+            transformedResponse: null,
+            error: "Gemini API key is missing or set to placeholder."
+        };
+    }
+
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    const modelsToTry = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"];
+    let lastError = null;
+
+    for (const modelName of modelsToTry) {
+        try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text().trim();
+            
+            // Clean markdown formatting if present
+            let cleanedText = text;
+            if (cleanedText.includes('```')) {
+                cleanedText = cleanedText.replace(/```json|```/g, '').trim();
+            }
+
+            const ensureStringArray = (val) => {
+                if (val === undefined || val === null) return [];
+                if (Array.isArray(val)) {
+                    return val.map(item => String(item).trim()).filter(Boolean);
+                }
+                return [String(val).trim()].filter(Boolean);
+            };
+
+            const jsonResult = JSON.parse(cleanedText);
+            const transformedResponse = {
+                summary: jsonResult.summary,
+                isAchievable: jsonResult.isAchievable,
+                monthlyPlan: jsonResult.monthlyPlan,
+                expenseReduction: ensureStringArray(jsonResult.expenseReduction),
+                riskWarnings: ensureStringArray(jsonResult.riskWarnings),
+                recommendations: ensureStringArray(jsonResult.recommendations),
+                actionPlan: ensureStringArray(jsonResult.actionPlan),
+                investmentGuidance: jsonResult.investmentGuidance,
+                alternativeTimeline: jsonResult.alternativeTimeline,
+                fullResponse: text,
+                roadmap: jsonResult.roadmap?.map((step, index) => ({
+                    step: index + 1,
+                    title: step.title,
+                    description: step.description,
+                    targetDate: new Date(Date.now() + (data.deadlineMonths / 4) * (index + 1) * 30 * 24 * 60 * 60 * 1000)
+                }))
+            };
+
+            return {
+                success: true,
+                prompt,
+                rawResponse: text,
+                transformedResponse,
+                error: null
+            };
+        } catch (modelError) {
+            console.error(`Model ${modelName} failed in Goal Planner:`, modelError.message);
+            lastError = modelError.message;
+        }
+    }
+
+    return {
+        success: false,
+        prompt,
+        rawResponse: null,
+        transformedResponse: null,
+        error: lastError || "All Gemini models failed."
+    };
 };

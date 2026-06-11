@@ -12,7 +12,8 @@ import {
     getFamilyDashboard,
     regenerateFamilyCode,
     updateMemberRole,
-    updateMemberSharingSettings
+    updateMemberSharingSettings,
+    getFamilyPortfolio
 } from '../controllers/familyController.js';
 
 const router = express.Router();
@@ -35,6 +36,7 @@ router.post('/regenerate-code', isFamilyAdmin, regenerateFamilyCode);
 
 // Dashboard & Sync
 router.get('/dashboard/:familyId', isApprovedMember, getFamilyDashboard);
+router.get('/portfolio/:familyId', isApprovedMember, getFamilyPortfolio);
 router.patch('/sharing-settings/:familyId', isApprovedMember, updateMemberSharingSettings);
 
 export default router;

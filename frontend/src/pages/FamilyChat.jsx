@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import {
     Send, Paperclip, FileText, Image as ImageIcon, Video, Trash2, Smile,
-    Settings, Download, Clock, Search
+    Settings, Download, Clock, Search, Mic, Square, X
 } from 'lucide-react';
 
 const FamilyChat = ({ familyId }) => {
@@ -19,9 +19,14 @@ const FamilyChat = ({ familyId }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearch, setShowSearch] = useState(false);
     const [page, setPage] = useState(1);
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
     const fileInputRef = useRef(null);
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const timerRef = useRef(null);
 
     const DISAPPEAR_OPTIONS = [
         { label: 'Never', value: null },
@@ -93,10 +98,106 @@ const FamilyChat = ({ familyId }) => {
         fetchChatSettings();
     }, [familyId]);
 
+    // Voice Recording Logic
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = recorder;
+            audioChunksRef.current = [];
+
+            recorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    audioChunksRef.current.push(e.data);
+                }
+            };
+
+            recorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                await handleSendAudio(audioBlob);
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            recorder.start();
+            setIsRecording(true);
+            setRecordingTime(0);
+            timerRef.current = setInterval(() => {
+                setRecordingTime(prev => prev + 1);
+            }, 1000);
+        } catch (err) {
+            console.error('Error starting recording:', err);
+            setError('Could not access microphone');
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            clearInterval(timerRef.current);
+        }
+    };
+
+    const cancelRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            mediaRecorderRef.current.onstop = null; // Prevent sending
+            setIsRecording(false);
+            clearInterval(timerRef.current);
+            audioChunksRef.current = [];
+            const stream = mediaRecorderRef.current.stream;
+            stream.getTracks().forEach(track => track.stop());
+        }
+    };
+
+    const formatRecordingTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const handleSendAudio = async (audioBlob) => {
+        try {
+            setSending(true);
+            const token = localStorage.getItem('token');
+            const reader = new FileReader();
+            
+            reader.onload = async (event) => {
+                const base64Data = event.target.result;
+                const fileName = `voice_message_${Date.now()}.webm`;
+                
+                const res = await axios.post(
+                    `${import.meta.env.VITE_API_BASE_URL}/family/chat/send-media`,
+                    {
+                        familyId,
+                        base64Data,
+                        fileName,
+                        mimeType: 'audio/webm',
+                        fileType: 'audio',
+                        disappearAfter: disappearTime
+                    },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                setMessages(prev => [...prev, res.data.data]);
+            };
+            reader.readAsDataURL(audioBlob);
+        } catch (err) {
+            setError('Failed to send voice message');
+        } finally {
+            setSending(false);
+        }
+    };
+
     // Auto-scroll to bottom
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, []);
 
     // Send text message
     const handleSendMessage = async (e) => {
@@ -119,7 +220,7 @@ const FamilyChat = ({ familyId }) => {
                             base64Data,
                             fileName: selectedMedia.name,
                             mimeType: selectedMedia.type,
-                            fileType: getFileType(selectedMedia.type),
+                            fileType: getFileType(selectedMedia.type, selectedMedia.name),
                             disappearAfter: disappearTime
                         },
                         { headers: { Authorization: `Bearer ${token}` } }
@@ -211,11 +312,12 @@ const FamilyChat = ({ familyId }) => {
     };
 
     // Get file type from mime type
-    const getFileType = (mimeType) => {
+    const getFileType = (mimeType, fileName) => {
         if (mimeType.startsWith('image')) return 'image';
         if (mimeType.startsWith('video')) return 'video';
-        if (mimeType.includes('pdf')) return 'pdf';
-        if (mimeType.includes('document') || mimeType.includes('word') || mimeType.includes('sheet')) return 'document';
+        if (mimeType.includes('pdf') || fileName?.toLowerCase().endsWith('.pdf')) return 'pdf';
+        if (mimeType.includes('document') || mimeType.includes('word') || mimeType.includes('sheet') || 
+            fileName?.match(/\.(doc|docx|xls|xlsx|ppt|pptx)$/i)) return 'document';
         if (mimeType.startsWith('audio')) return 'audio';
         return 'other';
     };
@@ -228,6 +330,29 @@ const FamilyChat = ({ familyId }) => {
         link.href = message.mediaFile.base64Data;
         link.download = message.mediaFile.originalName;
         link.click();
+    };
+
+    // Open media file in new tab (primarily for PDF)
+    const handleViewMedia = (message) => {
+        if (!message.mediaFile?.base64Data) return;
+
+        try {
+            const base64Parts = message.mediaFile.base64Data.split(',');
+            if (base64Parts.length < 2) return;
+            
+            const byteCharacters = atob(base64Parts[1]);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: message.mediaFile.mimeType });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        } catch (err) {
+            console.error('Error viewing media:', err);
+            handleDownloadMedia(message); // Fallback to download
+        }
     };
 
     // Render media based on type
@@ -252,24 +377,42 @@ const FamilyChat = ({ familyId }) => {
                         className="max-w-xs rounded-lg max-h-64"
                     />
                 )}
-                {['pdf', 'document', 'audio'].includes(fileType) && (
-                    <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-between">
+                {fileType === 'audio' && (
+                    <div className="flex flex-col gap-2">
+                        <audio
+                            src={base64Data}
+                            controls
+                            className="w-full h-10"
+                        />
+                        <p className="text-xs text-gray-500 px-1">{originalName}</p>
+                    </div>
+                )}
+                {['pdf', 'document'].includes(fileType) && (
+                    <div className="bg-gray-100/80 rounded-xl p-4 flex flex-col gap-3 border border-gray-200/50 hover:bg-gray-100 transition-all shadow-sm">
                         <div className="flex items-center gap-3">
-                            {fileType === 'pdf' && <FileText className="text-red-500" size={24} />}
-                            {fileType === 'document' && <FileText className="text-blue-500" size={24} />}
-                            {fileType === 'audio' && <ImageIcon className="text-green-500" size={24} />}
-                            <div>
-                                <p className="text-sm font-semibold text-gray-800">{originalName}</p>
-                                <p className="text-xs text-gray-600">{getFileSize(message.mediaFile.fileSize)}</p>
+                            <div className={`${fileType === 'pdf' ? 'bg-red-100' : 'bg-blue-100'} p-2.5 rounded-xl`}>
+                                <FileText className={fileType === 'pdf' ? 'text-red-500' : 'text-blue-500'} size={24} />
+                            </div>
+                            <div className="overflow-hidden flex-1">
+                                <p className="text-sm font-bold text-gray-800 truncate">{originalName}</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-bold tracking-tight">{getFileSize(message.mediaFile.fileSize)}</p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => handleDownloadMedia(message)}
-                            className="p-2 hover:bg-gray-200 rounded-lg"
-                            title="Download"
-                        >
-                            <Download size={18} className="text-gray-600" />
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handleViewMedia(message)}
+                                className="flex-1 flex items-center justify-center gap-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                                <Eye size={14} /> View
+                            </button>
+                            <button
+                                onClick={() => handleDownloadMedia(message)}
+                                className="p-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+                                title="Download"
+                            >
+                                <Download size={14} />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -312,7 +455,7 @@ const FamilyChat = ({ familyId }) => {
     }
 
     return (
-        <div className="flex flex-col bg-gray-50 rounded-lg overflow-hidden border border-gray-200" style={{ height: 'calc(100vh - 300px)' }}>
+        <div className="flex flex-col bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-2xl" style={{ height: 'calc(100vh - 100px)', minHeight: '650px' }}>
             {/* Header */}
             <div className="bg-white border-b border-gray-200 px-4 py-4 flex justify-between items-center shadow-sm">
                 <h2 className="text-xl font-bold text-gray-800">Family Chat</h2>
@@ -379,14 +522,18 @@ const FamilyChat = ({ familyId }) => {
                 )}
 
                 {messages.length === 0 ? (
-                    <div className="text-center text-gray-500 py-8">
-                        <p>No messages yet. Start the conversation!</p>
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
+                        <div className="bg-indigo-50 p-6 rounded-full">
+                             <Smile size={48} className="text-indigo-200" />
+                        </div>
+                        <p className="text-lg font-medium">No messages yet</p>
+                        <p className="text-sm">Start the conversation with your family!</p>
                     </div>
                 ) : (
                     messages.map((msg, idx) => {
                         if (msg.isDeleted) {
                             return (
-                                <div key={msg._id} className="text-center text-gray-400 text-xs py-1">
+                                <div key={msg._id} className="text-center text-gray-400 text-xs py-2 italic">
                                     Message deleted
                                 </div>
                             );
@@ -396,44 +543,50 @@ const FamilyChat = ({ familyId }) => {
                         return (
                             <div
                                 key={msg._id}
-                                className={`flex ${isOwn ? 'justify-end' : 'justify-start'} gap-2`}
+                                className={`flex ${isOwn ? 'justify-end' : 'justify-start'} gap-3 items-end mb-2`}
                             >
-                                {!isOwn && msg.senderProfileImage && (
-                                    <img
-                                        src={msg.senderProfileImage}
-                                        alt={msg.senderName}
-                                        className="w-8 h-8 rounded-full"
-                                    />
+                                {!isOwn && (
+                                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs flex-shrink-0">
+                                        {msg.senderProfileImage ? (
+                                            <img
+                                                src={msg.senderProfileImage}
+                                                alt={msg.senderName}
+                                                className="w-8 h-8 rounded-full"
+                                            />
+                                        ) : (
+                                            msg.senderName.charAt(0).toUpperCase()
+                                        )}
+                                    </div>
                                 )}
 
-                                <div className={`max-w-xs ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
+                                <div className={`max-w-[75%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col group`}>
                                     {!isOwn && (
-                                        <p className="text-xs text-gray-500 mb-1">{msg.senderName}</p>
+                                        <p className="text-[10px] font-bold text-indigo-600 mb-1 ml-1">{msg.senderName}</p>
                                     )}
 
                                     <div
-                                        className={`px-4 py-2 rounded-lg ${
+                                        className={`px-4 py-2.5 rounded-2xl shadow-sm ${
                                             isOwn
                                                 ? 'bg-indigo-600 text-white rounded-br-none'
-                                                : 'bg-gray-200 text-gray-800 rounded-bl-none'
+                                                : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'
                                         }`}
                                     >
                                         {msg.messageType === 'text' ? (
-                                            <p className="text-sm break-words">{msg.content}</p>
+                                            <p className="text-[14px] leading-relaxed break-words">{msg.content}</p>
                                         ) : (
                                             renderMedia(msg)
                                         )}
                                     </div>
 
-                                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                                        <span>{formatTime(msg.createdAt)}</span>
+                                    <div className={`flex items-center gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'flex-row-reverse' : ''}`}>
+                                        <span className="text-[10px] text-gray-400 font-medium">{formatTime(msg.createdAt)}</span>
                                         {isOwn && (
                                             <button
                                                 onClick={() => handleDeleteMessage(msg._id)}
-                                                className="p-1 hover:bg-red-50 rounded"
+                                                className="p-1 hover:bg-red-50 rounded-full transition-colors"
                                                 title="Delete"
                                             >
-                                                <Trash2 size={14} className="text-red-500" />
+                                                <Trash2 size={12} className="text-red-400" />
                                             </button>
                                         )}
                                     </div>
@@ -472,8 +625,8 @@ const FamilyChat = ({ familyId }) => {
             )}
 
             {/* Input Area */}
-            <div className="bg-white border-t border-gray-200 px-4 py-4">
-                <form onSubmit={handleSendMessage} className="flex gap-2">
+            <div className="bg-white border-t border-gray-100 px-4 py-4">
+                <form onSubmit={handleSendMessage} className="flex items-center gap-3">
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -482,33 +635,85 @@ const FamilyChat = ({ familyId }) => {
                         accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,audio/*"
                     />
 
-                    <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="p-2 hover:bg-gray-100 rounded-lg"
-                        title="Attach file"
-                        disabled={sending}
-                    >
-                        <Paperclip size={20} className="text-gray-600" />
-                    </button>
+                    {!isRecording ? (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="p-2.5 hover:bg-gray-50 rounded-full transition-colors flex-shrink-0"
+                                title="Attach file"
+                                disabled={sending}
+                            >
+                                <Paperclip size={22} className="text-gray-500" />
+                            </button>
 
-                    <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Type a message..."
-                        className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        disabled={sending}
-                    />
+                            <div className="flex-1 relative flex items-center">
+                                <input
+                                    type="text"
+                                    value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    placeholder="Type a message..."
+                                    className="w-full bg-gray-50 border border-transparent rounded-2xl px-5 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white focus:border-indigo-300 transition-all text-[15px]"
+                                    disabled={sending}
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute right-3 p-1.5 hover:bg-gray-200 rounded-full text-gray-400"
+                                    title="Emojis"
+                                >
+                                    <Smile size={20} />
+                                </button>
+                            </div>
 
-                    <button
-                        type="submit"
-                        disabled={sending || (!newMessage.trim() && !selectedMedia)}
-                        className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                        title="Send"
-                    >
-                        <Send size={20} />
-                    </button>
+                            {newMessage.trim() || selectedMedia ? (
+                                <button
+                                    type="submit"
+                                    disabled={sending}
+                                    className="p-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:opacity-50 shadow-md shadow-indigo-200 transition-all transform active:scale-95 flex-shrink-0"
+                                    title="Send"
+                                >
+                                    <Send size={20} />
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={startRecording}
+                                    disabled={sending}
+                                    className="p-3 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-all flex-shrink-0"
+                                    title="Voice Message"
+                                >
+                                    <Mic size={22} />
+                                </button>
+                            )}
+                        </>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-between bg-red-50 rounded-2xl px-4 py-2 border border-red-100 animate-pulse">
+                            <div className="flex items-center gap-3">
+                                <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></div>
+                                <span className="text-red-600 font-medium text-sm">
+                                    Recording: {formatRecordingTime(recordingTime)}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={cancelRecording}
+                                    className="p-2 hover:bg-red-100 rounded-full text-red-400"
+                                    title="Cancel"
+                                >
+                                    <X size={20} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={stopRecording}
+                                    className="p-2.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-sm"
+                                    title="Stop and Send"
+                                >
+                                    <Square size={20} fill="white" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </form>
             </div>
         </div>

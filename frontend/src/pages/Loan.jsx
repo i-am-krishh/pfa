@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { CreditCard, Plus, Trash2, Edit2, Eye, AlertCircle, Calendar, DollarSign, Percent, CheckCircle2 } from 'lucide-react'
+import { CreditCard, Plus, Trash2, Edit2, Eye, AlertCircle, Calendar, IndianRupee, Percent, CheckCircle2 } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -19,6 +19,7 @@ export default function Loan() {
     totalAmount: '',
     remainingAmount: '',
     rateOfInterest: '',
+    interestType: 'compound',
     tenure: '',
     tenureUnit: 'months',
     startDate: new Date().toISOString().split('T')[0],
@@ -48,6 +49,14 @@ export default function Loan() {
   useEffect(() => {
     fetchLoans()
     fetchFamilyGroups()
+
+    const handleEmiPaid = () => {
+      fetchLoans()
+    }
+    window.addEventListener('emiPaid', handleEmiPaid)
+    return () => {
+      window.removeEventListener('emiPaid', handleEmiPaid)
+    }
   }, [])
 
   const fetchFamilyGroups = async () => {
@@ -61,20 +70,32 @@ export default function Loan() {
     }
   }
 
-  const calculateEMI = (principal, rate, months) => {
-    if (rate === 0) {
-      return (principal / months).toFixed(2)
+  const calculateEMI = (principal, rate, months, interestType = 'compound') => {
+    if (rate === 0 || months === 0) {
+      return (principal / (months || 1)).toFixed(2)
     }
-    const monthlyRate = rate / 12 / 100
-    const emi = (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
-                (Math.pow(1 + monthlyRate, months) - 1)
-    return emi.toFixed(2)
+    if (interestType === 'simple') {
+      const years = months / 12
+      const interest = principal * (rate / 100) * years
+      const totalRepayment = principal + interest
+      return (totalRepayment / months).toFixed(2)
+    } else {
+      const monthlyRate = rate / 12 / 100
+      const emi = (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+                  (Math.pow(1 + monthlyRate, months) - 1)
+      return emi.toFixed(2)
+    }
   }
 
-  const calculateTotalInterest = (principal, rate, months) => {
-    const emi = parseFloat(calculateEMI(principal, rate, months))
-    const totalPayment = emi * months
-    return (totalPayment - principal).toFixed(2)
+  const calculateTotalInterest = (principal, rate, months, interestType = 'compound') => {
+    if (interestType === 'simple') {
+      const years = months / 12
+      return (principal * (rate / 100) * years).toFixed(2)
+    } else {
+      const emi = parseFloat(calculateEMI(principal, rate, months, interestType))
+      const totalPayment = emi * months
+      return (totalPayment - principal).toFixed(2)
+    }
   }
 
   const handleChange = (e) => {
@@ -93,7 +114,7 @@ export default function Loan() {
       const rate = parseFloat(formData.rateOfInterest)
       
       const tenureMonths = formData.tenureUnit === 'years' ? tenure * 12 : tenure
-      const monthlyEMI = parseFloat(calculateEMI(principal, rate, tenureMonths))
+      const monthlyEMI = parseFloat(calculateEMI(principal, rate, tenureMonths, formData.interestType))
       
       const startDate = new Date(formData.startDate)
       const endDate = new Date(startDate)
@@ -102,7 +123,6 @@ export default function Loan() {
       // Calculate amount paid based on current remaining amount input
       // If user inputs remaining amount, we calculate paid as total - remaining
       const remaining = parseFloat(formData.remainingAmount)
-      const paidObj = totalAmount - remaining
 
       const payload = {
         type: formData.type,
@@ -110,6 +130,7 @@ export default function Loan() {
         totalAmount: principal,
         remainingAmount: remaining,
         rateOfInterest: rate,
+        interestType: formData.interestType || 'compound',
         tenure: tenure,
         tenureUnit: formData.tenureUnit,
         monthlyEMI: monthlyEMI,
@@ -150,6 +171,7 @@ export default function Loan() {
       totalAmount: loan.totalAmount,
       remainingAmount: loan.remainingAmount,
       rateOfInterest: loan.rateOfInterest,
+      interestType: loan.interestType || 'compound',
       tenure: loan.tenure,
       tenureUnit: loan.tenureUnit,
       startDate: loan.startDate.split('T')[0],
@@ -179,6 +201,7 @@ export default function Loan() {
       totalAmount: '',
       remainingAmount: '',
       rateOfInterest: '',
+      interestType: 'compound',
       tenure: '',
       tenureUnit: 'months',
       startDate: new Date().toISOString().split('T')[0],
@@ -236,11 +259,11 @@ export default function Loan() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-             <DollarSign size={80} className="text-red-600" />
+             <IndianRupee size={80} className="text-red-600" />
           </div>
           <div className="relative z-10">
              <p className="text-slate-500 font-medium mb-2 flex items-center gap-2">
-               <DollarSign size={16} /> Total Outstanding
+               <IndianRupee size={16} /> Total Outstanding
              </p>
              <h3 className="text-3xl font-bold text-slate-900">
                ₹{(totalLoanAmount - totalPaid).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
@@ -389,6 +412,20 @@ export default function Loan() {
                   </div>
                 </div>
 
+                {/* Interest Type */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Interest Type</label>
+                  <select
+                    name="interestType"
+                    value={formData.interestType}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all"
+                  >
+                    <option value="compound">Compound Interest (Reducing)</option>
+                    <option value="simple">Simple Interest</option>
+                  </select>
+                </div>
+
                 {/* Tenure */}
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700">Tenure Period</label>
@@ -518,8 +555,8 @@ export default function Loan() {
         ) : (
           loans.map((loan) => {
              const tenureMonths = loan.tenureUnit === 'years' ? loan.tenure * 12 : loan.tenure
-             const emi = calculateEMI(loan.totalAmount, loan.rateOfInterest, tenureMonths)
-             const totalInterest = calculateTotalInterest(loan.totalAmount, loan.rateOfInterest, tenureMonths)
+             const emi = calculateEMI(loan.totalAmount, loan.rateOfInterest, tenureMonths, loan.interestType || 'compound')
+             const totalInterest = calculateTotalInterest(loan.totalAmount, loan.rateOfInterest, tenureMonths, loan.interestType || 'compound')
              const progress = calculateLoanProgress(loan.remainingAmount, loan.totalAmount)
 
              return (
@@ -536,7 +573,7 @@ export default function Loan() {
                      </div>
                      <div className="flex items-center gap-4 text-sm text-slate-500">
                         <div className="flex items-center gap-1.5"><Calendar size={14}/> {new Date(loan.startDate).toLocaleDateString()}</div>
-                        <div className="flex items-center gap-1.5"><Percent size={14}/> {loan.rateOfInterest}% Interest</div>
+                        <div className="flex items-center gap-1.5"><Percent size={14}/> {loan.rateOfInterest}% ({loan.interestType === 'simple' ? 'Simple' : 'Compound'})</div>
                      </div>
                    </div>
 
@@ -594,7 +631,7 @@ export default function Loan() {
                            <AlertCircle size={18} className="text-blue-500"/>
                            <h3>Loan Analysis</h3>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
                            <div>
                               <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Monthly EMI</p>
                               <p className="text-lg font-bold text-slate-900">₹{parseFloat(emi).toLocaleString('en-IN')}</p>
@@ -610,6 +647,10 @@ export default function Loan() {
                            <div>
                               <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Tenure</p>
                               <p className="text-lg font-bold text-slate-900">{loan.tenure} {loan.tenureUnit}</p>
+                           </div>
+                           <div>
+                              <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Interest Type</p>
+                              <p className="text-lg font-bold text-slate-900 capitalize">{loan.interestType || 'compound'}</p>
                            </div>
                         </div>
                          {(loan.description) && (
