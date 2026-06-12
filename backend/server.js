@@ -2,6 +2,9 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { createServer } from 'http';
+
 import authRoutes from './routes/authRoutes.js';
 import incomeRoutes from './routes/incomeRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
@@ -30,7 +33,7 @@ import welfareRoutes from './routes/welfareRoutes.js';
 import { debugStockQuote } from './controllers/stockController.js';
 import { debugStatementUpload } from './controllers/statementController.js';
 import multer from 'multer';
-import { createServer } from 'http';
+
 
 dotenv.config(); // Reload watch trigger to update Twelve Data key
 
@@ -160,15 +163,17 @@ app.use((err, req, res, next) => {
 export default app;
 
 // Only listen if run directly (not on Vercel serverless)
-import { fileURLToPath } from 'url';
+// Wrapped in async IIFE for ESM compatibility
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-    // Only import socket service locally - it's incompatible with Vercel serverless
-    const { initSocketService } = await import('./services/socketService.js');
-    connectDB(); // Connect eagerly when running locally
-    const httpServer = createServer(app);
-    initSocketService(httpServer);
-    httpServer.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    });
-}
+    (async () => {
+        // Only import socket service locally - it's incompatible with Vercel serverless
+        const { initSocketService } = await import('./services/socketService.js');
+        connectDB(); // Connect eagerly when running locally
+        const httpServer = createServer(app);
+        initSocketService(httpServer);
+        httpServer.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+            console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+        });
+    })();
+}
