@@ -1,6 +1,8 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Menu, X, Bell, Check, CreditCard } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useTheme } from '../context/ThemeContext'
 import Sidebar from '../components/Sidebar'
 import Chatbot from '../components/Chatbot'
 import axios from 'axios'
