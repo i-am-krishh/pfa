@@ -63,33 +63,46 @@ mongoose.connection.on('connected', () => {
 });
 
 // Database connection
+// NOTE: throws on failure so Vercel logs show the real error instead of a silent timeout
 const connectDB = async () => {
-    try {
-        if (mongoose.connection.readyState === 1) return;
-        
-        console.log('Connecting to MongoDB...');
-        // Mask password in logs - using the same logic as successful test_db.mjs
-        const maskedUri = MONGODB_URI.replace(/:([^:@]+)@/, ':****@');
-        console.log(`Using URI: ${maskedUri}`);
+    if (mongoose.connection.readyState === 1) return; // already connected
 
-        await mongoose.connect(MONGODB_URI, {
-            serverSelectionTimeoutMS: 5000,
-            socketTimeoutMS: 45000,
-            dbName: 'PersonalFinance',
-            retryWrites: true,
-            w: 'majority'
-        });
-        console.log('MongoDB connected successfully');
-    } catch (error) {
-        console.error('MongoDB connection error:', error.message);
+    // Hard guard: if no Atlas URI is configured, fail fast with a clear error
+    if (!process.env.MONGODB_ATLAS_URI && !process.env.MONGODB_URI) {
+        throw new Error('MONGODB_ATLAS_URI environment variable is not set. Configure it in Vercel Dashboard → Settings → Environment Variables.');
     }
+
+    console.log('Connecting to MongoDB...');
+    const maskedUri = MONGODB_URI.replace(/:([^:@]+)@/, ':****@');
+    console.log(`Using URI: ${maskedUri}`);
+
+    // throws on failure — callers must handle it
+    await mongoose.connect(MONGODB_URI, {
+        serverSelectionTimeoutMS: 8000,
+        socketTimeoutMS: 45000,
+        dbName: 'PersonalFinance',
+        retryWrites: true,
+        w: 'majority'
+    });
+    console.log('MongoDB connected successfully');
 };
 
-// Lazy DB connection - runs on each request but connectDB() guards against double-connects
-// This is Vercel-safe: avoids top-level await blocking the module load
+// Lazy DB connection middleware — Vercel-safe (no top-level await)
+// Returns 503 immediately if DB is down, instead of hanging until the 10s timeout
 app.use(async (req, res, next) => {
-    await connectDB();
-    next();
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        console.error('[DB] Connection failed:', error.message);
+        // Skip DB check for health probe so Vercel knows the function is alive
+        if (req.path === '/health' || req.path === '/') return next();
+        res.status(503).json({
+            success: false,
+            message: 'Database unavailable. Check MONGODB_ATLAS_URI in Vercel environment variables.',
+            error: error.message
+        });
+    }
 });
 
 
